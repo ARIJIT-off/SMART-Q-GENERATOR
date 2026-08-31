@@ -27,7 +27,10 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('qgen_token');
       localStorage.removeItem('qgen_user');
-      window.location.href = '/login';
+      // Redirect to root instead of /login to let React Router handle the SPA routing safely
+      if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+        window.location.href = '/';
+      }
     }
     return Promise.reject(err);
   }
