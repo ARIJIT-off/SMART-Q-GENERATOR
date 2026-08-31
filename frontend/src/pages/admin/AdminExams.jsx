@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
