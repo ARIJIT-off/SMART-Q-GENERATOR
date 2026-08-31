@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
@@ -45,7 +45,7 @@ export default function CreateExam() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
-        <a href="/admin" className="text-indigo-600 text-sm mb-4 inline-block">← Dashboard</a>
+        <Link to="/admin" className="text-indigo-600 text-sm mb-4 inline-block">← Dashboard</Link>
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Create New Exam</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -111,7 +111,7 @@ export default function CreateExam() {
             {questions.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
                 <p>No questions yet.</p>
-                <a href="/admin/upload" className="text-indigo-600 text-sm hover:underline">Upload a syllabus first →</a>
+                <Link to="/admin/upload" className="text-indigo-600 text-sm hover:underline">Upload a syllabus first →</Link>
               </div>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto pr-1">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -63,7 +63,7 @@ export default function AdminExams() {
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <a href="/admin" className="text-indigo-600 text-sm">← Dashboard</a>
+            <Link to="/admin" className="text-indigo-600 text-sm">← Dashboard</Link>
             <h1 className="text-2xl font-bold text-gray-800 mt-1">My Exams</h1>
           </div>
           <Link to="/admin/create-exam" className="bg-indigo-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-indigo-700">

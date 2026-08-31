@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -27,7 +27,7 @@ export default function ExamResults() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
-        <a href="/admin/exams" className="text-indigo-600 text-sm mb-4 inline-block">← Back to Exams</a>
+        <Link to="/admin/exams" className="text-indigo-600 text-sm mb-4 inline-block">← Back to Exams</Link>
         <h1 className="text-2xl font-bold text-gray-800">{exam.title} — Results</h1>
         <p className="text-gray-500 mb-6">{submissions.length} submissions · {totalQ} questions · Max {maxMarks} marks</p>
 

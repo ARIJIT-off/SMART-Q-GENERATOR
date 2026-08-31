@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
@@ -52,7 +52,7 @@ export default function UploadSyllabus() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
-        <a href="/admin" className="text-indigo-600 text-sm mb-4 inline-block">← Back to Dashboard</a>
+        <Link to="/admin" className="text-indigo-600 text-sm mb-4 inline-block">← Back to Dashboard</Link>
         <h1 className="text-2xl font-bold text-gray-800 mb-1">Upload Syllabus PDF</h1>
         <p className="text-gray-500 mb-8">Upload your subject syllabus and our local AI will generate MCQs — no cloud APIs.</p>
 

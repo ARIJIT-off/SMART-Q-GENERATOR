@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
@@ -53,7 +53,7 @@ export default function ReviewQuestions() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
-        <a href="/admin/upload" className="text-indigo-600 text-sm mb-4 inline-block">← Back</a>
+        <Link to="/admin/upload" className="text-indigo-600 text-sm mb-4 inline-block">← Back</Link>
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Review Questions</h1>

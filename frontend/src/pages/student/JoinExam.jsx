@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 export default function JoinExam() {
@@ -41,7 +41,7 @@ export default function JoinExam() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <a href="/student" className="text-indigo-600 text-sm mb-4 inline-block">← Dashboard</a>
+        <Link to="/student" className="text-indigo-600 text-sm mb-4 inline-block">← Dashboard</Link>
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">Join an Exam</h1>
           <p className="text-gray-500 mb-6">Paste the exam link or scan the QR code</p>

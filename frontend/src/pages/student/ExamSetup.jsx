@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import { getLocation, startCamera, requestFullscreen } from '../../utils/proctoring';
 import toast from 'react-hot-toast';
@@ -72,7 +72,7 @@ export default function ExamSetup() {
         <p className="text-5xl mb-4">❌</p>
         <h2 className="text-xl font-bold text-red-600 mb-2">Exam Unavailable</h2>
         <p className="text-gray-600">{error}</p>
-        <a href="/student" className="mt-4 inline-block text-indigo-600 hover:underline">← Back to Dashboard</a>
+        <Link to="/student" className="mt-4 inline-block text-indigo-600 hover:underline">← Back to Dashboard</Link>
       </div>
     </div>
   );
