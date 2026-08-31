@@ -2,7 +2,10 @@ import axios from 'axios';
 
 // In production: VITE_API_URL = https://your-backend.vercel.app
 // In development: falls back to Vite proxy (/api → localhost:5000)
-const BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
+let BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
+if (BASE_URL !== '/api' && !BASE_URL.endsWith('/api')) {
+  BASE_URL = `${BASE_URL.replace(/\/$/, '')}/api`;
+}
 
 const api = axios.create({
   baseURL: BASE_URL,
