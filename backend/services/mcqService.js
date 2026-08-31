@@ -24,7 +24,7 @@ async function extractTextFromBuffer(buffer) {
  * Generate MCQs using Google Gemini API (gemini-1.5-flash — FREE)
  */
 async function generateMCQsWithGemini(syllabusText, numQuestions = 20) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
   // Trim text to avoid token limits (Gemini free: 1M tokens/day)
   const trimmedText = syllabusText.slice(0, 12000);
