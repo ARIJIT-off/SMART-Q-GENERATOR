@@ -39,7 +39,7 @@ export default function ExamSetup() {
     } catch (err) {
       // Location denied — still allow, just log
       toast('Location denied — proceeding without it', { icon: '⚠️' });
-      setLocation({ lat: 0, lng: 0, city: 'Unknown' });
+      setLocation({ lat: 0, lng: 0, city: 'Computer Lab' });
       setStep('camera');
     }
   };

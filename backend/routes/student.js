@@ -76,7 +76,7 @@ router.post('/submit', protect, async (req, res) => {
       studentId: req.user._id,
       studentName: req.user.name,
       studentEmail: req.user.email,
-      location: location || { lat: 0, lng: 0, city: 'Unknown' },
+      location: location || { lat: 0, lng: 0, city: 'Computer Lab' },
       answers,
       cheatingAttempted: cheatingAttempted || false,
       cheatingEvents: cheatingEvents || [],

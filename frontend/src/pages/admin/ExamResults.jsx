@@ -67,7 +67,7 @@ export default function ExamResults() {
                         <p className="font-medium text-gray-800">{sub.studentName}</p>
                         <p className="text-gray-400 text-xs">{sub.studentEmail}</p>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{sub.location?.city || 'Unknown'}</td>
+                      <td className="px-4 py-3 text-gray-600">{sub.location?.city || 'Computer Lab'}</td>
                       <td className="px-4 py-3 font-bold text-indigo-700">{sub.score}/{maxMarks}</td>
                       <td className="px-4 py-3 text-green-600 font-medium">{sub.correct}</td>
                       <td className="px-4 py-3 text-red-500 font-medium">{sub.wrong}</td>
