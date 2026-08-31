@@ -12,7 +12,9 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-const BASE_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const BASE_URL = process.env.FRONTEND_URL || 
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173'));
 const APP_NAME = 'SMART Q-GEN';
 
 // ─── Templates ────────────────────────────────────────────────────
