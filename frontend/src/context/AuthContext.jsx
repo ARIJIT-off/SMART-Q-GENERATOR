@@ -21,19 +21,21 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const setAuth = (userData, token) => {
+    localStorage.setItem('qgen_token', token);
+    localStorage.setItem('qgen_user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
-    localStorage.setItem('qgen_token', res.data.token);
-    localStorage.setItem('qgen_user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
+    setAuth(res.data.user, res.data.token);
     return res.data.user;
   };
 
   const register = async (name, email, password, role) => {
     const res = await api.post('/auth/register', { name, email, password, role });
-    localStorage.setItem('qgen_token', res.data.token);
-    localStorage.setItem('qgen_user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
+    setAuth(res.data.user, res.data.token);
     return res.data.user;
   };
 
@@ -44,7 +46,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setAuth }}>
       {children}
     </AuthContext.Provider>
   );

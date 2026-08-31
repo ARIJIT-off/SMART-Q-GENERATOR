@@ -7,7 +7,7 @@ import api from '../utils/api';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { setAuth } = useAuth();
   
   // Tabs: true = Sign In, false = Create Account / Reset Password
   const [isLogin, setIsLogin] = useState(true);
@@ -54,7 +54,7 @@ export default function Login() {
         password: newPin 
       });
       toast.success('Account verified & PIN set!');
-      login(res.data.user, res.data.token);
+      setAuth(res.data.user, res.data.token);
       navigate(res.data.user.role === 'admin' ? '/admin' : '/student');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Verification failed');
@@ -70,8 +70,8 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post('/auth/login', { email, password: loginPin });
-      toast.success(`Welcome back, ${res.data.user.name}!`);
-      login(res.data.user, res.data.token);
+      toast.success(`Welcome back!`);
+      setAuth(res.data.user, res.data.token);
       navigate(res.data.user.role === 'admin' ? '/admin' : '/student');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Invalid email or PIN');
