@@ -1,29 +1,16 @@
 /**
- * Email Service — Gmail SMTP via Nodemailer
- * Used for: OTPs, welcome emails, exam link sharing, result notifications
+ * Email Service — Resend API
+ * Replaces nodemailer/Gmail SMTP which is blocked on Vercel serverless
  */
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// Create transporter fresh each invocation (required for serverless/Vercel)
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
-  });
-}
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const BASE_URL = process.env.FRONTEND_URL || 
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 
+const BASE_URL = process.env.FRONTEND_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` :
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173'));
 const APP_NAME = 'SMART Q-GEN';
+const FROM = 'SMART Q-GEN <onboarding@resend.dev>';
 
 // ─── Templates ────────────────────────────────────────────────────
 
@@ -38,7 +25,7 @@ function otpTemplate(otp) {
     </div>
     <div style="padding:40px 32px;text-align:center;">
       <h2 style="color:#1e293b;margin:0 0 16px;">Your Verification Code</h2>
-      <p style="color:#64748b;margin-bottom:32px;">Use the 4-digit code below to verify your email and set your password.</p>
+      <p style="color:#64748b;margin-bottom:32px;">Use the 4-digit code below to verify your email and set your PIN.</p>
       <div style="background:#f1f5f9;border-radius:12px;padding:24px;font-size:48px;letter-spacing:12px;font-weight:900;color:#4f46e5;margin-bottom:24px;">
         ${otp}
       </div>
@@ -144,12 +131,13 @@ function resultTemplate(studentName, examTitle, score, correct, wrong, total) {
 
 async function sendOtpEmail(to, otp) {
   try {
-    await createTransporter().sendMail({
-      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
+    const { error } = await resend.emails.send({
+      from: FROM,
       to,
-      subject: `${otp} is your verification code`,
+      subject: `${otp} is your SMART Q-GEN verification code`,
       html: otpTemplate(otp)
     });
+    if (error) throw new Error(error.message);
     console.log(`✅ OTP sent to ${to}`);
   } catch (err) {
     console.error('❌ OTP email failed:', err.message);
@@ -159,8 +147,8 @@ async function sendOtpEmail(to, otp) {
 
 async function sendWelcomeEmail(to, name, role) {
   try {
-    await createTransporter().sendMail({
-      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
+    await resend.emails.send({
+      from: FROM,
       to,
       subject: `Welcome to ${APP_NAME} 🎓`,
       html: welcomeTemplate(name, role)
@@ -170,20 +158,21 @@ async function sendWelcomeEmail(to, name, role) {
 
 async function sendExamLinkEmail(to, adminName, examTitle, examLink, duration, numQuestions) {
   try {
-    await createTransporter().sendMail({
-      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
+    const { error } = await resend.emails.send({
+      from: FROM,
       to,
       subject: `📋 Exam Invitation: ${examTitle}`,
       html: examLinkTemplate(adminName, examTitle, examLink, duration, numQuestions)
     });
+    if (error) throw new Error(error.message);
     return true;
   } catch (err) { throw err; }
 }
 
 async function sendResultEmail(to, studentName, examTitle, score, correct, wrong, total) {
   try {
-    await createTransporter().sendMail({
-      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
+    await resend.emails.send({
+      from: FROM,
       to,
       subject: `📊 Your ${examTitle} Results are Ready!`,
       html: resultTemplate(studentName, examTitle, score, correct, wrong, total)
