@@ -135,12 +135,12 @@ function resultTemplate(studentName, examTitle, score, correct, wrong, total) {
 async function sendOtpEmail(to, otp) {
   try {
     await transporter.sendMail({
-      from: \`"\${APP_NAME}" <\${process.env.GMAIL_USER}>\`,
+      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to,
-      subject: \`\${otp} is your verification code\`,
+      subject: `${otp} is your verification code`,
       html: otpTemplate(otp)
     });
-    console.log(\`✅ OTP sent to \${to}\`);
+    console.log(`✅ OTP sent to ${to}`);
   } catch (err) {
     console.error('❌ OTP email failed:', err.message);
     throw err; // Crucial: Throw error so frontend knows it failed
@@ -150,9 +150,9 @@ async function sendOtpEmail(to, otp) {
 async function sendWelcomeEmail(to, name, role) {
   try {
     await transporter.sendMail({
-      from: \`"\${APP_NAME}" <\${process.env.GMAIL_USER}>\`,
+      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to,
-      subject: \`Welcome to \${APP_NAME} 🎓\`,
+      subject: `Welcome to ${APP_NAME} 🎓`,
       html: welcomeTemplate(name, role)
     });
   } catch (err) { console.error('❌ Welcome email failed:', err.message); }
@@ -161,9 +161,9 @@ async function sendWelcomeEmail(to, name, role) {
 async function sendExamLinkEmail(to, adminName, examTitle, examLink, duration, numQuestions) {
   try {
     await transporter.sendMail({
-      from: \`"\${APP_NAME}" <\${process.env.GMAIL_USER}>\`,
+      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to,
-      subject: \`📋 Exam Invitation: \${examTitle}\`,
+      subject: `📋 Exam Invitation: ${examTitle}`,
       html: examLinkTemplate(adminName, examTitle, examLink, duration, numQuestions)
     });
     return true;
@@ -173,9 +173,9 @@ async function sendExamLinkEmail(to, adminName, examTitle, examLink, duration, n
 async function sendResultEmail(to, studentName, examTitle, score, correct, wrong, total) {
   try {
     await transporter.sendMail({
-      from: \`"\${APP_NAME}" <\${process.env.GMAIL_USER}>\`,
+      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to,
-      subject: \`📊 Your \${examTitle} Results are Ready!\`,
+      subject: `📊 Your ${examTitle} Results are Ready!`,
       html: resultTemplate(studentName, examTitle, score, correct, wrong, total)
     });
   } catch (err) { console.error('❌ Result email failed:', err.message); }

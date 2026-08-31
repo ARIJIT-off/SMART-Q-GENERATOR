@@ -108,13 +108,13 @@ export default function Login() {
         <div className="flex p-1 bg-gray-50 rounded-xl mb-8">
           <button
             onClick={() => { setIsLogin(true); resetState(); }}
-            className={\`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all \${isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}\`}
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
             Sign In
           </button>
           <button
             onClick={() => { setIsLogin(false); resetState(); }}
-            className={\`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all \${!isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}\`}
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${!isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
             Sign Up / Reset PIN
           </button>
@@ -143,7 +143,7 @@ export default function Login() {
                 type="password" required
                 maxLength={4}
                 pattern="[0-9]{4}"
-                value={loginPin} onChange={e => setLoginPin(e.target.value.replace(/\\D/g, ''))}
+                value={loginPin} onChange={e => setLoginPin(e.target.value.replace(/\D/g, ''))}
                 placeholder="••••"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center tracking-[1em] text-lg font-bold"
               />
@@ -180,14 +180,14 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setRole('student')}
-                  className={\`py-2.5 rounded-xl border text-sm font-medium transition-all \${role === 'student' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}\`}
+                  className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${role === 'student' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                 >
                   Student
                 </button>
                 <button
                   type="button"
                   onClick={() => setRole('admin')}
-                  className={\`py-2.5 rounded-xl border text-sm font-medium transition-all \${role === 'admin' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}\`}
+                  className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${role === 'admin' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                 >
                   Teacher / Admin
                 </button>
@@ -220,7 +220,7 @@ export default function Login() {
                 type="text" required
                 maxLength={4}
                 pattern="[0-9]{4}"
-                value={otp} onChange={e => setOtp(e.target.value.replace(/\\D/g, ''))}
+                value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="0000"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-center tracking-[1em] text-xl font-bold text-indigo-600"
               />
@@ -233,7 +233,7 @@ export default function Login() {
                 type="password" required
                 maxLength={4}
                 pattern="[0-9]{4}"
-                value={newPin} onChange={e => setNewPin(e.target.value.replace(/\\D/g, ''))}
+                value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
                 placeholder="••••"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-center tracking-[1em] text-xl font-bold"
               />
