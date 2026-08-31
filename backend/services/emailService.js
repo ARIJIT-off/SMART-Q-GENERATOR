@@ -4,13 +4,21 @@
  */
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD
-  }
-});
+// Create transporter fresh each invocation (required for serverless/Vercel)
+function createTransporter() {
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD
+    },
+    tls: {
+      rejectUnauthorized: false
+    }
+  });
+}
 
 const BASE_URL = process.env.FRONTEND_URL || 
   (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 
@@ -136,7 +144,7 @@ function resultTemplate(studentName, examTitle, score, correct, wrong, total) {
 
 async function sendOtpEmail(to, otp) {
   try {
-    await transporter.sendMail({
+    await createTransporter().sendMail({
       from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to,
       subject: `${otp} is your verification code`,
@@ -145,13 +153,13 @@ async function sendOtpEmail(to, otp) {
     console.log(`✅ OTP sent to ${to}`);
   } catch (err) {
     console.error('❌ OTP email failed:', err.message);
-    throw err; // Crucial: Throw error so frontend knows it failed
+    throw err;
   }
 }
 
 async function sendWelcomeEmail(to, name, role) {
   try {
-    await transporter.sendMail({
+    await createTransporter().sendMail({
       from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to,
       subject: `Welcome to ${APP_NAME} 🎓`,
@@ -162,7 +170,7 @@ async function sendWelcomeEmail(to, name, role) {
 
 async function sendExamLinkEmail(to, adminName, examTitle, examLink, duration, numQuestions) {
   try {
-    await transporter.sendMail({
+    await createTransporter().sendMail({
       from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to,
       subject: `📋 Exam Invitation: ${examTitle}`,
@@ -174,7 +182,7 @@ async function sendExamLinkEmail(to, adminName, examTitle, examLink, duration, n
 
 async function sendResultEmail(to, studentName, examTitle, score, correct, wrong, total) {
   try {
-    await transporter.sendMail({
+    await createTransporter().sendMail({
       from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to,
       subject: `📊 Your ${examTitle} Results are Ready!`,
