@@ -16,7 +16,7 @@ async function generateMCQsFromPDF(pdfBuffer, numQuestions = 20) {
   }
 
   try {
-    const model = getGenAI().getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = getGenAI().getGenerativeModel({ model: 'gemini-3.6-flash' });
 
     const prompt = `You are an expert educator. Based on the attached syllabus/document, generate exactly ${numQuestions} multiple-choice questions. 
     Ensure the questions cover various topics found in the document, ranging from easy to hard.
