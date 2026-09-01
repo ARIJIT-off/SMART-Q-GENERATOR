@@ -32,7 +32,7 @@ const pdfFile = document.getElementById('pdfFile');
 const pyqZone = document.getElementById('pyqZone');
 const pyqFile = document.getElementById('pyqFile');
 
-uploadZone.addEventListener('click', () => pdfFile.click());
+uploadZone.addEventListener('click', (e) => { if (e.target !== pdfFile) pdfFile.click(); });
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
 uploadZone.addEventListener('drop', e => {
@@ -47,7 +47,7 @@ pdfFile.addEventListener('change', () => {
 });
 
 // PYQ Upload listeners
-pyqZone.addEventListener('click', () => pyqFile.click());
+pyqZone.addEventListener('click', (e) => { if (e.target !== pyqFile) pyqFile.click(); });
 pyqZone.addEventListener('dragover', e => { e.preventDefault(); pyqZone.classList.add('dragover'); });
 pyqZone.addEventListener('dragleave', () => pyqZone.classList.remove('dragover'));
 pyqZone.addEventListener('drop', e => {
