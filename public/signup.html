@@ -152,7 +152,7 @@
   async function verifyOtp() {
     const email = document.getElementById('emailInput').value.trim();
     const otp   = document.getElementById('otpInput').value.trim();
-    if (!/^\d{4}$/.test(otp)) { showMsg('Enter the 4-digit OTP.'); return; }
+    if (!/^\d{4}$/.test(otp)) { showMsg('Enter the 4-digit OTP from your email.'); return; }
     clearMsg();
 
     const btn = document.getElementById('verifyOtpBtn');
@@ -161,12 +161,16 @@
     document.getElementById('verifyOtpSpinner').classList.remove('hidden');
 
     try {
-      // Just validate OTP exists (actual verify + pin set in step 3)
-      verifiedOtp = otp;
+      // Actually validate OTP with the backend at step 2
+      await apiFetch('/auth/check-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp })
+      });
+      verifiedOtp = otp;   // store only after server confirms it's correct
       showMsg('OTP verified! Now set your PIN.', 'success');
       setStep(3);
     } catch (err) {
-      showMsg(err.message);
+      showMsg(err.message);   // "Incorrect OTP code" shown HERE in step 2
     } finally {
       btn.disabled = false;
       document.getElementById('verifyOtpText').textContent = 'Verify OTP';

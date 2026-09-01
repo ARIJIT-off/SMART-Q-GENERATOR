@@ -39,6 +39,23 @@ router.post('/send-otp', async (req, res) => {
   }
 });
 
+// POST /api/auth/check-otp  (step 2 — just validate OTP, no PIN set yet)
+router.post('/check-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ message: 'Email and OTP are required' });
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) return res.status(404).json({ message: 'No account found. Please request OTP first.' });
+    if (user.otp !== otp) return res.status(400).json({ message: 'Incorrect OTP code. Check your email and try again.' });
+    if (user.otpExpires < new Date()) return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
+
+    res.json({ valid: true, message: 'OTP verified!' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // POST /api/auth/verify-otp  (verify OTP + set 4-digit PIN)
 router.post('/verify-otp', async (req, res) => {
   try {
