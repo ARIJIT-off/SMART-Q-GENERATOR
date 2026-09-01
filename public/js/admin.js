@@ -29,8 +29,6 @@ function switchTab(name) {
 // ── UPLOAD & GENERATE ───────────────────────────────────────────────────
 const uploadZone = document.getElementById('uploadZone');
 const pdfFile = document.getElementById('pdfFile');
-const pyqZone = document.getElementById('pyqZone');
-const pyqFile = document.getElementById('pyqFile');
 
 uploadZone.addEventListener('click', (e) => { if (e.target !== pdfFile) pdfFile.click(); });
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
@@ -62,13 +60,14 @@ pyqFile.addEventListener('change', () => {
 });
 
 async function generateMCQs() {
-  if (!pdfFile.files[0]) { showMsg('genMsg', 'Please select a Syllabus PDF file.', 'error'); return; }
+  if (!pdfFile.files[0]) { showMsg('genMsg', 'Please select a PDF file.', 'error'); return; }
+  const numQ = parseInt(document.getElementById('numQ').value) || 20;
 
   const btn = document.getElementById('genBtn');
   btn.disabled = true;
   document.getElementById('genText').textContent = 'Generating...';
   document.getElementById('genSpinner').classList.remove('hidden');
-  document.getElementById('genMsg').innerHTML = '<div class="alert alert-info">🤖 Parsing PDF and generating questions via AI... This may take 20–40 seconds.</div>';
+  document.getElementById('genMsg').innerHTML = '<div class="alert alert-info">🤖 Parsing PDF and generating MCQs via AI… This may take 20–40 seconds.</div>';
 
   try {
     const fd = new FormData();
@@ -80,7 +79,6 @@ async function generateMCQs() {
     fd.append('saq2', document.getElementById('q_saq2').value || 0);
     fd.append('laq5', document.getElementById('q_laq5').value || 0);
     fd.append('laq10', document.getElementById('q_laq10').value || 0);
-
     const data = await apiUpload('/admin/upload-syllabus', fd);
     generatedQuestions = data.questions;
     renderPreview(generatedQuestions);
@@ -102,21 +100,100 @@ function renderPreview(questions) {
   const letters = ['A','B','C','D'];
   list.innerHTML = questions.map((q, i) => `
     <div class="question-card">
-      <div class="question-num">Q${i+1} • <span class="badge badge-info">${q.type || 'MCQ'} (${q.marks || 1}m)</span> • <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span> • ${q.topic}</div>
+      <div class="question-num">Q${i+1} · <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span> · ${q.topic}</div>
       <div class="question-text">${q.text}</div>
-              ${(q.type === 'MCQ' || !q.type) ? `
-                <ul class="options-list">
-                  ${(q.options||[]).map((o,oi) => `
-                    <li class="option-item ${oi === q.answerIndex ? 'correct' : ''}">
-                      <span class="option-letter">${letters[oi]}</span>${o}
-                    </li>`).join('')}
-                </ul>
-              ` : `
-                <div style="margin-top:10px; padding:10px; background:var(--success-light); border-left:4px solid var(--success); border-radius:4px; font-size:0.9rem;">
-                  <strong>Ideal Answer / Rubric:</strong><br>
-                  ${q.idealAnswer || 'N/A'}
-                </div>
-              `}
+      <ul class="options-list">
+        ${q.options.map((o, oi) => `
+          <li class="option-item ${oi === q.answerIndex ? 'correct' : ''}">
+            <span class="option-letter">${letters[oi]}</span>${o}
+          </li>`).join('')}
+      </ul>
+    </div>`).join('');
+}
+
+function diffBadge(d) { return d === 'easy' ? 'success' : d === 'hard' ? 'danger' : 'warning'; }
+
+async function saveToBank() {
+  if (!generatedQuestions.length) return;
+  try {
+    const data = await apiFetch('/admin/questions/save', {
+      method: 'POST',
+      body: JSON.stringify({ questions: generatedQuestions })
+    });
+    showToast(`✅ ${data.count} questions saved to bank!`, 'success');
+    generatedQuestions = [];
+    document.getElementById('previewPanel').style.display = 'none';
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ── QUESTION BANK ────────────────────────────────────────────────────────
+function groupQuestions(questions) {
+  const groups = {};
+  questions.forEach((q, i) => {
+    const key = q.batchId || 'legacy';
+    if (!groups[key]) {
+      groups[key] = {
+        id: key,
+        pdfName: q.pdfName || 'Manual / Legacy Questions',
+        date: new Date(q.createdAt).toLocaleString(),
+        questions: []
+      };
+    }
+    groups[key].questions.push(q);
+  });
+  return Object.values(groups).sort((a,b) => b.id.localeCompare(a.id));
+}
+
+function toggleGroup(groupId) {
+  const el = document.getElementById(`group-content-${groupId}`);
+  const icon = document.getElementById(`group-icon-${groupId}`);
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    icon.textContent = '▼';
+  } else {
+    el.style.display = 'none';
+    icon.textContent = '▶';
+  }
+}
+
+async function loadBank() {
+  const list = document.getElementById('bankList');
+  list.innerHTML = '<p style="color:var(--dim)">Loading…</p>';
+  try {
+    const data = await apiFetch('/admin/questions');
+    bankQuestions = data.questions;
+    document.getElementById('bankCount').textContent = bankQuestions.length;
+    if (!bankQuestions.length) { list.innerHTML = '<p style="color:var(--dim)">No questions yet. Upload a syllabus to generate some.</p>'; return; }
+    
+    const grouped = groupQuestions(bankQuestions);
+    const letters = ['A','B','C','D'];
+    
+    list.innerHTML = grouped.map((g, idx) => `
+      <div class="question-group" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+        <div class="group-header" onclick="toggleGroup('${g.id}')" style="background: var(--surface-light); padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-weight: 500;">
+            <span style="color:var(--primary); margin-right:8px;">Req #${grouped.length - idx}</span>
+            <span>📄 ${g.pdfName}</span>
+            <span class="badge badge-info" style="margin-left: 8px;">${g.questions.length} Qs</span>
+          </div>
+          <span id="group-icon-${g.id}" style="color:var(--dim);">▶</span>
+        </div>
+        <div id="group-content-${g.id}" style="display: none; padding: 16px; background: var(--surface);">
+          ${g.questions.map((q, i) => `
+            <div class="question-card" id="bq-${q._id}">
+              <div class="question-num" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Q${i+1} • <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span> • <span class="tag">${q.topic}</span></span>
+                <button class="btn btn-danger btn-sm" onclick="deleteQ('${q._id}')">🗑</button>
+              </div>
+              <div class="question-text">${q.text}</div>
+              <ul class="options-list">
+                ${q.options.map((o,oi) => `
+                  <li class="option-item ${oi === q.answerIndex ? 'correct' : ''}">
+                    <span class="option-letter">${letters[oi]}</span>${o}
+                  </li>`).join('')}
+              </ul>
             </div>
           `).join('')}
         </div>
@@ -355,7 +432,7 @@ async function loadResults() {
           <tbody>
             ${submissions.map(s => {
               const avgTime = s.answers?.length ? Math.round((s.totalTimeSec || 0) / s.answers.length) : 0;
-              return `<tr class="result-row">
+              return `<tr class="result-row" onclick="viewSubmission('${examId}', '${s._id}')" style="cursor:pointer;">
                 <td>
                   <div>${s.studentName || 'Student'}</div>
                   <div class="text-sm" style="color:var(--dim);">${s.studentEmail}</div>
@@ -385,7 +462,6 @@ function showMsg(id, text, type = 'error') {
 
 
 async function viewSubmission(examId, subId) {
-  // Let's create or show a modal dynamically
   let modal = document.getElementById('gradingModal');
   if (!modal) {
     modal = document.createElement('div');
