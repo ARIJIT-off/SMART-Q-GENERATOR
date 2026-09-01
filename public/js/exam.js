@@ -303,17 +303,30 @@ function renderQuestion(idx) {
       >${ans.textAnswer || ''}</textarea>
       <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.75rem;color:var(--dim);">
         <span>Max marks: <b style="color:var(--primary);">${marks}</b> — AI will grade your answer</span>
-        <span id="wordCountEl">${wordCount} words</span>
+        <span style="display:flex;gap:12px;align-items:center;">
+          <span style="color:var(--success);font-weight:600;display:none;" id="autoSaveBadge">✓ Saved</span>
+          <span id="wordCountEl">${wordCount} words</span>
+        </span>
       </div>`;
 
-    // Wire live word counter
+    // Wire live word counter & auto-save indicator
     requestAnimationFrame(() => {
       const ta = document.getElementById('ansTextarea');
+      let typingTimer;
       if (ta) {
         ta.addEventListener('input', function() {
           const wc = this.value.trim().split(/\s+/).filter(Boolean).length;
           const el = document.getElementById('wordCountEl');
+          const badge = document.getElementById('autoSaveBadge');
           if (el) el.textContent = wc + ' words';
+          
+          if (badge) {
+            badge.style.display = 'none';
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+              if (this.value.trim().length > 0) badge.style.display = 'inline';
+            }, 600);
+          }
         });
         ta.focus();
       }
@@ -348,6 +361,22 @@ function clearAnswer() {
   }
   renderQuestion(currentIdx);
 }
+
+function updateTextAnswer(text) {
+  answers[currentIdx].textAnswer = text;
+  
+  // Update UI indicators instantly without full re-render (which would lose focus)
+  const isAns = text.trim().length > 0;
+  
+  // Update progress text
+  document.getElementById('qProgress').textContent =
+    `${answers.filter(a => a.selectedIndex !== -1 || (a.textAnswer||'').trim().length > 0).length}/${questions.length} answered`;
+    
+  // Update navigation grid button styling
+  const navBtn = document.getElementById(`nav-${currentIdx}`);
+  if (navBtn) navBtn.classList.toggle('answered', isAns);
+}
+
 
 
 function navigate(dir) {
