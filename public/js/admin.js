@@ -108,6 +108,35 @@ async function saveToBank() {
 }
 
 // ── QUESTION BANK ────────────────────────────────────────────────────────
+function groupQuestions(questions) {
+  const groups = {};
+  questions.forEach((q, i) => {
+    const key = q.batchId || 'legacy';
+    if (!groups[key]) {
+      groups[key] = {
+        id: key,
+        pdfName: q.pdfName || 'Manual / Legacy Questions',
+        date: new Date(q.createdAt).toLocaleString(),
+        questions: []
+      };
+    }
+    groups[key].questions.push(q);
+  });
+  return Object.values(groups).sort((a,b) => b.id.localeCompare(a.id));
+}
+
+function toggleGroup(groupId) {
+  const el = document.getElementById(`group-content-${groupId}`);
+  const icon = document.getElementById(`group-icon-${groupId}`);
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    icon.textContent = '▼';
+  } else {
+    el.style.display = 'none';
+    icon.textContent = '▶';
+  }
+}
+
 async function loadBank() {
   const list = document.getElementById('bankList');
   list.innerHTML = '<p style="color:var(--dim)">Loading…</p>';
@@ -116,21 +145,39 @@ async function loadBank() {
     bankQuestions = data.questions;
     document.getElementById('bankCount').textContent = bankQuestions.length;
     if (!bankQuestions.length) { list.innerHTML = '<p style="color:var(--dim)">No questions yet. Upload a syllabus to generate some.</p>'; return; }
+    
+    const grouped = groupQuestions(bankQuestions);
     const letters = ['A','B','C','D'];
-    list.innerHTML = bankQuestions.map((q,i) => `
-      <div class="question-card" id="bq-${q._id}">
-        <div class="question-num" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>Q${i+1} · <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span> · <span class="tag">${q.topic}</span></span>
-          <button class="btn btn-danger btn-sm" onclick="deleteQ('${q._id}')">🗑</button>
+    
+    list.innerHTML = grouped.map((g, idx) => `
+      <div class="question-group" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+        <div class="group-header" onclick="toggleGroup('${g.id}')" style="background: var(--surface-light); padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-weight: 500;">
+            <span style="color:var(--primary); margin-right:8px;">Req #${grouped.length - idx}</span>
+            <span>📄 ${g.pdfName}</span>
+            <span class="badge badge-info" style="margin-left: 8px;">${g.questions.length} Qs</span>
+          </div>
+          <span id="group-icon-${g.id}" style="color:var(--dim);">▶</span>
         </div>
-        <div class="question-text">${q.text}</div>
-        <ul class="options-list">
-          ${q.options.map((o,oi) => `
-            <li class="option-item ${oi === q.answerIndex ? 'correct' : ''}">
-              <span class="option-letter">${letters[oi]}</span>${o}
-            </li>`).join('')}
-        </ul>
-      </div>`).join('');
+        <div id="group-content-${g.id}" style="display: none; padding: 16px; background: var(--surface);">
+          ${g.questions.map((q, i) => `
+            <div class="question-card" id="bq-${q._id}">
+              <div class="question-num" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Q${i+1} • <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span> • <span class="tag">${q.topic}</span></span>
+                <button class="btn btn-danger btn-sm" onclick="deleteQ('${q._id}')">🗑</button>
+              </div>
+              <div class="question-text">${q.text}</div>
+              <ul class="options-list">
+                ${q.options.map((o,oi) => `
+                  <li class="option-item ${oi === q.answerIndex ? 'correct' : ''}">
+                    <span class="option-letter">${letters[oi]}</span>${o}
+                  </li>`).join('')}
+              </ul>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
   } catch (err) {
     list.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
   }
@@ -152,7 +199,7 @@ async function deleteQ(id) {
 // ── CREATE EXAM ──────────────────────────────────────────────────────────
 async function loadBankForSelector() {
   const sel = document.getElementById('qSelector');
-  sel.innerHTML = '<p style="color:var(--dim);font-size:.85rem;">Loading questions…</p>';
+  sel.innerHTML = '<p style="color:var(--dim);font-size:.85rem;">Loading questions...</p>';
   try {
     const data = await apiFetch('/admin/questions');
     bankQuestions = data.questions;
@@ -162,17 +209,54 @@ async function loadBankForSelector() {
       sel.innerHTML = '<p style="color:var(--dim);font-size:.85rem;">No questions in bank. Generate some first.</p>';
       return;
     }
-    sel.innerHTML = bankQuestions.map(q => `
-      <label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border-bottom:1px solid var(--border);cursor:pointer;">
-        <input type="checkbox" value="${q._id}" onchange="toggleQ(this)" style="margin-top:3px;accent-color:var(--primary);">
-        <div>
-          <div style="font-size:.88rem;color:var(--text);">${q.text}</div>
-          <div class="text-sm" style="margin-top:4px;"><span class="tag">${q.topic}</span> <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span></div>
+    
+    const grouped = groupQuestions(bankQuestions);
+    
+    sel.innerHTML = grouped.map((g, idx) => `
+      <div class="question-group" style="margin-bottom: 8px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+        <div class="group-header" style="background: var(--surface-light); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+          <div onclick="toggleGroup('sel-${g.id}')" style="cursor: pointer; flex: 1; font-weight: 500; font-size: 0.9rem;">
+            <span id="group-icon-sel-${g.id}" style="color:var(--dim); margin-right:4px;">▶</span>
+            <span style="color:var(--primary); margin-right:6px;">Req #${grouped.length - idx}</span>
+            <span>📄 ${g.pdfName}</span>
+            <span class="badge badge-info" style="margin-left: 6px;">${g.questions.length} Qs</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="selectAllGroup('${g.id}', this)" style="font-size:0.75rem; padding: 2px 8px;">Select All</button>
         </div>
-      </label>`).join('');
+        <div id="group-content-sel-${g.id}" style="display: none; padding: 0;">
+          ${g.questions.map(q => `
+            <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-top:1px solid var(--border);cursor:pointer; background: var(--surface);">
+              <input type="checkbox" class="cb-group-${g.id}" value="${q._id}" onchange="toggleQ(this)" style="margin-top:3px;accent-color:var(--primary);">
+              <div>
+                <div style="font-size:.88rem;color:var(--text);">${q.text}</div>
+                <div class="text-sm" style="margin-top:4px;"><span class="tag">${q.topic}</span> <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span></div>
+              </div>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
   } catch (err) {
     sel.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
   }
+}
+
+function selectAllGroup(groupId, btn) {
+  const checkboxes = document.querySelectorAll(`.cb-group-${groupId}`);
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  
+  checkboxes.forEach(cb => {
+    if (allChecked) {
+      cb.checked = false;
+      selectedQuestionIds.delete(cb.value);
+    } else {
+      cb.checked = true;
+      selectedQuestionIds.add(cb.value);
+    }
+  });
+  
+  btn.textContent = allChecked ? 'Select All' : 'Deselect All';
+  updateSelCount();
 }
 
 function toggleQ(cb) {

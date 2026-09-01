@@ -23,7 +23,10 @@ router.post('/upload-syllabus', protect, requireRole('admin'), upload.single('sy
   try {
     if (!req.file) return res.status(400).json({ message: 'No PDF file uploaded' });
     const numQuestions = Math.min(50, Math.max(5, parseInt(req.body.numQuestions) || 20));
-    const questions = await generateMCQsFromPDF(req.file.buffer, numQuestions);
+    const generated = await generateMCQsFromPDF(req.file.buffer, numQuestions);
+    const pdfName = req.file.originalname;
+    const batchId = Date.now().toString(); // simple batch id
+    const questions = generated.map(q => ({ ...q, pdfName, batchId }));
     res.json({ questions, count: questions.length });
   } catch (err) {
     console.error('MCQ gen error:', err.message);

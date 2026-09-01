@@ -7,6 +7,8 @@ const questionSchema = new mongoose.Schema({
   topic: { type: String, default: 'General', trim: true },
   difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' },
   source: { type: String, default: 'ai-generated' },
+  pdfName: { type: String },
+  batchId: { type: String },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
