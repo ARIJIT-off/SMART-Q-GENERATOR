@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SMART Q-GEN</title>
+  <script>
+    // Redirect based on login state
+    const token = localStorage.getItem('sqg_token');
+    const user = (() => { try { return JSON.parse(localStorage.getItem('sqg_user')); } catch { return null; } })();
+    if (token && user) {
+      window.location.href = user.role === 'admin' ? '/admin.html' : '/student.html';
+    } else {
+      window.location.href = '/login.html';
+    }
+  </script>
+</head>
+<body></body>
+</html>

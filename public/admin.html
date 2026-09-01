@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Dashboard — SMART Q-GEN</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .gen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media(max-width:768px){ .gen-grid{ grid-template-columns:1fr; } }
+    .q-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .exam-link-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: monospace; font-size: 0.82rem; color: var(--muted); word-break: break-all; }
+    .result-row td:first-child { font-weight: 600; }
+    .topic-scores-cell { max-width: 200px; }
+    .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; color: var(--dim); margin: 2px; }
+  </style>
+</head>
+<body>
+<!-- Navbar -->
+<nav class="navbar">
+  <span class="navbar-brand">⚡ SMART Q-GEN</span>
+  <div class="navbar-actions">
+    <span class="user-chip" id="user-chip">Loading…</span>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="main">
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('upload')">📤 Upload &amp; Generate</button>
+    <button class="tab-btn" onclick="switchTab('bank')">📚 Question Bank</button>
+    <button class="tab-btn" onclick="switchTab('create')">✏️ Create Exam</button>
+    <button class="tab-btn" onclick="switchTab('exams')">📋 My Exams</button>
+    <button class="tab-btn" onclick="switchTab('results')">📊 Results</button>
+  </div>
+
+  <!-- ── Tab: Upload & Generate ── -->
+  <div id="tab-upload" class="tab-panel active">
+    <div class="gen-grid">
+      <div>
+        <h3 style="margin-bottom:16px;">Upload Syllabus PDF</h3>
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">📄</div>
+          <p style="color:var(--text);font-weight:600;">Drag &amp; drop PDF here</p>
+          <p class="text-sm" style="margin-top:6px;">or click to browse</p>
+          <input type="file" id="pdfFile" accept=".pdf" style="display:none">
+        </div>
+        <p id="fileName" class="text-sm mt-2" style="color:var(--dim);"></p>
+
+        <div class="form-group mt-3">
+          <label>Number of Questions (5–50)</label>
+          <input type="number" class="form-control" id="numQ" value="20" min="5" max="50">
+        </div>
+        <button class="btn btn-primary" id="genBtn" onclick="generateMCQs()">
+          <span id="genText">🤖 Generate MCQs</span>
+          <span id="genSpinner" class="spinner hidden"></span>
+        </button>
+        <div id="genMsg" class="mt-2"></div>
+      </div>
+
+      <div id="previewPanel" style="display:none;">
+        <div class="flex justify-between items-center mb-2">
+          <h3>Preview (<span id="previewCount">0</span> Questions)</h3>
+          <button class="btn btn-success btn-sm" onclick="saveToBank()">💾 Save to Bank</button>
+        </div>
+        <div id="previewList" style="max-height:560px;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab: Question Bank ── -->
+  <div id="tab-bank" class="tab-panel">
+    <div class="flex justify-between items-center mb-3">
+      <h3>Question Bank (<span id="bankCount">0</span>)</h3>
+      <button class="btn btn-secondary btn-sm" onclick="loadBank()">↻ Refresh</button>
+    </div>
+    <div id="bankList"></div>
+  </div>
+
+  <!-- ── Tab: Create Exam ── -->
+  <div id="tab-create" class="tab-panel">
+    <div style="max-width:700px;">
+      <h3 style="margin-bottom:20px;">Create New Exam</h3>
+      <div id="createMsg"></div>
+      <div class="form-group">
+        <label>Exam Title</label>
+        <input type="text" class="form-control" id="examTitle" placeholder="e.g. Physics Mid-Term 2024">
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea class="form-control" id="examDesc" rows="2" placeholder="Brief instructions for students…"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+        <div class="form-group">
+          <label>Duration (minutes)</label>
+          <input type="number" class="form-control" id="examDuration" value="60" min="5">
+        </div>
+        <div class="form-group">
+          <label>Marks / Question</label>
+          <input type="number" class="form-control" id="marksPerQ" value="1" step="0.5" min="0.5">
+        </div>
+        <div class="form-group">
+          <label>Negative Marking</label>
+          <input type="number" class="form-control" id="negMarks" value="0" step="0.25" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Select Questions from Bank (<span id="selCount">0</span> selected)</label>
+        <div id="qSelector" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:12px;"></div>
+      </div>
+      <button class="btn btn-primary" id="createExamBtn" onclick="createExam()">
+        <span id="createExamText">🚀 Create Exam &amp; Get Link</span>
+        <span id="createExamSpinner" class="spinner hidden"></span>
+      </button>
+
+      <!-- Exam link output -->
+      <div id="examLinkPanel" style="display:none;margin-top:24px;">
+        <div class="card">
+          <h3 style="margin-bottom:12px;color:var(--success);">✅ Exam Created!</h3>
+          <p class="text-sm mb-2">Share this link with students:</p>
+          <div class="exam-link-box" id="examLinkDisplay"></div>
+          <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="copyLink()">📋 Copy Link</button>
+            <button class="btn btn-secondary btn-sm" onclick="showQR()">📱 Show QR Code</button>
+          </div>
+          <div style="margin-top:16px;">
+            <p class="text-sm mb-2">Send by email to students:</p>
+            <textarea class="form-control" id="studentEmails" rows="2" placeholder="student1@gmail.com, student2@gmail.com (comma-separated)"></textarea>
+            <button class="btn btn-secondary btn-sm mt-2" onclick="sendEmails()">📧 Send Invitations</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="qrModal" class="modal-overlay hidden">
+      <div class="modal" style="text-align:center;">
+        <div class="modal-header">
+          <h3>Exam QR Code</h3>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('qrModal').classList.add('hidden')">✕</button>
+        </div>
+        <div class="qr-container">
+          <canvas id="qrCanvas"></canvas>
+        </div>
+        <p class="text-sm mt-2">Students can scan this to access the exam</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab: My Exams ── -->
+  <div id="tab-exams" class="tab-panel">
+    <div class="flex justify-between items-center mb-3">
+      <h3>My Exams</h3>
+      <button class="btn btn-secondary btn-sm" onclick="loadExams()">↻ Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Title</th><th>Questions</th><th>Duration</th><th>Status</th><th>Access Code</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="examsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Tab: Results ── -->
+  <div id="tab-results" class="tab-panel">
+    <div class="form-group" style="max-width:400px;">
+      <label>Select Exam</label>
+      <select class="form-control" id="resultExamSelect" onchange="loadResults()">
+        <option value="">— Choose an exam —</option>
+      </select>
+    </div>
+    <div id="resultsPanel"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<!-- QR code library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

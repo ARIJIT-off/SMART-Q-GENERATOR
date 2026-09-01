@@ -1,5 +1,29 @@
 {
+  "name": "smart-qgen",
+  "version": "2.0.0",
+  "description": "SMART Q-GEN — AI-Powered Proctored Exam Platform",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "nodemon api/index.js"
+  },
   "dependencies": {
-    "docx": "^9.7.1"
+    "@google/generative-ai": "^0.21.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.4.1",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.10.1",
+    "pdf-parse": "^1.1.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }

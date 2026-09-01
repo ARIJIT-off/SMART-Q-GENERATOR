@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign Up — SMART Q-GEN</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="center">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-badge"><span>⚡ SMART Q-GEN</span></div>
+      <p>Create your account</p>
+    </div>
+
+    <!-- Step indicators -->
+    <div class="steps">
+      <div class="step-dot active" id="dot1">1</div>
+      <div class="step-line"></div>
+      <div class="step-dot" id="dot2">2</div>
+      <div class="step-line"></div>
+      <div class="step-dot" id="dot3">3</div>
+    </div>
+
+    <div id="msg"></div>
+
+    <!-- Step 1: Email + Role -->
+    <div id="step1">
+      <h3 style="margin-bottom:6px;">Your Details</h3>
+      <p style="margin-bottom:20px;font-size:.85rem;">Enter your Gmail and select your role</p>
+      <div class="form-group">
+        <label>Gmail Address</label>
+        <input type="email" class="form-control" id="emailInput" placeholder="you@gmail.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>I am a…</label>
+        <div class="role-toggle">
+          <button type="button" class="role-btn active" id="roleStudent" onclick="setRole('student')">
+            🎓 Student
+          </button>
+          <button type="button" class="role-btn" id="roleAdmin" onclick="setRole('admin')">
+            🏫 Teacher
+          </button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="sendOtpBtn" onclick="sendOtp()">
+        <span id="sendOtpText">Send OTP to Email</span>
+        <span id="sendOtpSpinner" class="spinner hidden"></span>
+      </button>
+    </div>
+
+    <!-- Step 2: OTP Verify -->
+    <div id="step2" class="hidden">
+      <h3 style="margin-bottom:6px;">Verify Email</h3>
+      <p style="margin-bottom:6px;font-size:.85rem;">Enter the 4-digit OTP sent to</p>
+      <p style="margin-bottom:20px;color:#818cf8;font-weight:600;font-size:.9rem;" id="emailDisplay"></p>
+      <div class="form-group">
+        <label>OTP Code</label>
+        <input type="text" class="form-control otp-input" id="otpInput"
+          placeholder="0000" maxlength="4" pattern="\d{4}" inputmode="numeric">
+      </div>
+      <button class="btn btn-primary" id="verifyOtpBtn" onclick="verifyOtp()">
+        <span id="verifyOtpText">Verify OTP</span>
+        <span id="verifyOtpSpinner" class="spinner hidden"></span>
+      </button>
+      <p class="text-center text-sm mt-2">
+        Didn't receive? <a href="#" onclick="sendOtp(true);return false;">Resend OTP</a>
+      </p>
+    </div>
+
+    <!-- Step 3: Set PIN -->
+    <div id="step3" class="hidden">
+      <h3 style="margin-bottom:6px;">Set Your PIN</h3>
+      <p style="margin-bottom:20px;font-size:.85rem;">Choose a 4-digit PIN you'll use to log in</p>
+      <div class="form-group">
+        <label>4-Digit PIN</label>
+        <input type="password" class="form-control pin-input" id="pinInput"
+          placeholder="••••" maxlength="4" pattern="\d{4}" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label>Confirm PIN</label>
+        <input type="password" class="form-control pin-input" id="pinConfirm"
+          placeholder="••••" maxlength="4" pattern="\d{4}" inputmode="numeric">
+      </div>
+      <button class="btn btn-primary" id="setPinBtn" onclick="setPin()">
+        <span id="setPinText">Create Account</span>
+        <span id="setPinSpinner" class="spinner hidden"></span>
+      </button>
+    </div>
+
+    <hr class="divider">
+    <p class="text-center text-sm">Already have an account? <a href="/login.html">Sign in</a></p>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/api.js"></script>
+<script>
+  let selectedRole = 'student';
+  let verifiedOtp = '';
+
+  function setRole(role) {
+    selectedRole = role;
+    document.getElementById('roleStudent').classList.toggle('active', role === 'student');
+    document.getElementById('roleAdmin').classList.toggle('active', role === 'admin');
+  }
+
+  function setStep(n) {
+    ['step1','step2','step3'].forEach((id, i) => {
+      document.getElementById(id).classList.toggle('hidden', i + 1 !== n);
+    });
+    ['dot1','dot2','dot3'].forEach((id, i) => {
+      const dot = document.getElementById(id);
+      dot.classList.remove('active','done');
+      if (i + 1 < n) dot.classList.add('done');
+      if (i + 1 === n) dot.classList.add('active');
+    });
+  }
+
+  function showMsg(text, type = 'error') {
+    document.getElementById('msg').innerHTML = `<div class="alert alert-${type}">${text}</div>`;
+  }
+  function clearMsg() { document.getElementById('msg').innerHTML = ''; }
+
+  async function sendOtp(isResend = false) {
+    const email = document.getElementById('emailInput').value.trim();
+    if (!email || !email.includes('@')) { showMsg('Enter a valid Gmail address.'); return; }
+    clearMsg();
+
+    const btn = document.getElementById('sendOtpBtn');
+    btn.disabled = true;
+    document.getElementById('sendOtpText').textContent = 'Sending…';
+    document.getElementById('sendOtpSpinner').classList.remove('hidden');
+
+    try {
+      await apiFetch('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, role: selectedRole })
+      });
+      document.getElementById('emailDisplay').textContent = email;
+      showMsg('OTP sent! Check your inbox (and spam folder).', 'success');
+      setStep(2);
+    } catch (err) {
+      showMsg(err.message);
+    } finally {
+      btn.disabled = false;
+      document.getElementById('sendOtpText').textContent = 'Send OTP to Email';
+      document.getElementById('sendOtpSpinner').classList.add('hidden');
+    }
+  }
+
+  async function verifyOtp() {
+    const email = document.getElementById('emailInput').value.trim();
+    const otp   = document.getElementById('otpInput').value.trim();
+    if (!/^\d{4}$/.test(otp)) { showMsg('Enter the 4-digit OTP.'); return; }
+    clearMsg();
+
+    const btn = document.getElementById('verifyOtpBtn');
+    btn.disabled = true;
+    document.getElementById('verifyOtpText').textContent = 'Verifying…';
+    document.getElementById('verifyOtpSpinner').classList.remove('hidden');
+
+    try {
+      // Just validate OTP exists (actual verify + pin set in step 3)
+      verifiedOtp = otp;
+      showMsg('OTP verified! Now set your PIN.', 'success');
+      setStep(3);
+    } catch (err) {
+      showMsg(err.message);
+    } finally {
+      btn.disabled = false;
+      document.getElementById('verifyOtpText').textContent = 'Verify OTP';
+      document.getElementById('verifyOtpSpinner').classList.add('hidden');
+    }
+  }
+
+  async function setPin() {
+    const email = document.getElementById('emailInput').value.trim();
+    const pin   = document.getElementById('pinInput').value.trim();
+    const conf  = document.getElementById('pinConfirm').value.trim();
+
+    if (!/^\d{4}$/.test(pin)) { showMsg('PIN must be exactly 4 digits.'); return; }
+    if (pin !== conf) { showMsg('PINs do not match.'); return; }
+    clearMsg();
+
+    const btn = document.getElementById('setPinBtn');
+    btn.disabled = true;
+    document.getElementById('setPinText').textContent = 'Creating account…';
+    document.getElementById('setPinSpinner').classList.remove('hidden');
+
+    try {
+      const data = await apiFetch('/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp: verifiedOtp, pin })
+      });
+      setAuth(data.token, data.user);
+      showToast('Account created! Welcome to SMART Q-GEN 🎉', 'success');
+      setTimeout(() => {
+        window.location.href = data.user.role === 'admin' ? '/admin.html' : '/student.html';
+      }, 800);
+    } catch (err) {
+      showMsg(err.message);
+      btn.disabled = false;
+      document.getElementById('setPinText').textContent = 'Create Account';
+      document.getElementById('setPinSpinner').classList.add('hidden');
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Exam — SMART Q-GEN</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { overflow: hidden; }
+    #setup-screen, #exam-screen { transition: opacity .3s; }
+    .fullscreen-warn {
+      position: fixed; inset: 0; background: rgba(245,158,11,.97); z-index: 8888;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      color: #1a1a1a; text-align: center; padding: 40px;
+    }
+    .fullscreen-warn h2 { font-size: 2rem; margin-bottom: 12px; }
+    .fullscreen-warn button { margin-top: 20px; background: #1a1a1a; color: #fff; border: none;
+      padding: 14px 32px; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    #cheat-overlay { display: none; }
+    .nav-arrow { background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .nav-arrow:hover { background: var(--border); }
+    .submit-btn { background: linear-gradient(135deg,var(--danger),#dc2626); color:#fff;
+      border: none; padding: 12px 28px; border-radius: 8px; font-size: 0.95rem;
+      font-weight: 700; cursor: pointer; }
+    .submit-btn:hover { opacity: .9; }
+  </style>
+</head>
+<body>
+
+<!-- ══ SETUP SCREEN ══════════════════════════════════════════════════════ -->
+<div id="setup-screen" class="center">
+  <div class="card setup-card">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:2rem;">⚡</div>
+      <h2 id="examTitleSetup">Loading Exam…</h2>
+      <p id="examMeta" class="text-sm mt-1"></p>
+    </div>
+
+    <div id="setupMsg"></div>
+
+    <div class="permission-item">
+      <span class="perm-icon">📍</span>
+      <div>
+        <div style="font-weight:600;font-size:.9rem;">Location Access</div>
+        <div class="text-sm">Required for exam proctoring</div>
+      </div>
+      <span class="perm-status pending" id="locStatus">Pending</span>
+    </div>
+
+    <div class="permission-item">
+      <span class="perm-icon">📷</span>
+      <div>
+        <div style="font-weight:600;font-size:.9rem;">Camera Access</div>
+        <div class="text-sm">Required — you'll be monitored</div>
+      </div>
+      <span class="perm-status pending" id="camStatus">Pending</span>
+    </div>
+
+    <div class="permission-item">
+      <span class="perm-icon">🖥️</span>
+      <div>
+        <div style="font-weight:600;font-size:.9rem;">Fullscreen Mode</div>
+        <div class="text-sm">Mandatory during exam</div>
+      </div>
+      <span class="perm-status pending" id="fsStatus">Pending</span>
+    </div>
+
+    <div class="alert alert-warning mt-3" style="font-size:.82rem;">
+      ⚠️ Switching tabs, minimizing, or exiting fullscreen will <b>automatically submit</b> your exam.
+    </div>
+
+    <button class="btn btn-primary mt-3" id="startBtn" onclick="startSetup()" disabled>
+      Grant Permissions &amp; Continue
+    </button>
+    <button class="btn btn-primary mt-2" id="beginBtn" style="display:none" onclick="beginExam()">
+      🚀 Begin Exam
+    </button>
+  </div>
+</div>
+
+<!-- ══ EXAM SCREEN ════════════════════════════════════════════════════════ -->
+<div id="exam-screen" style="display:none;">
+  <!-- Header -->
+  <div class="exam-header">
+    <div>
+      <b id="examTitleBar" style="font-size:.9rem;"></b>
+      <span style="color:var(--dim);font-size:.8rem;margin-left:10px;" id="qProgress"></span>
+    </div>
+    <div class="timer" id="timer">00:00</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span id="cheatCounter" class="badge badge-danger" style="display:none;">⚠ 0 warnings</span>
+      <button class="submit-btn" onclick="confirmSubmit()">Submit Exam</button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="exam-body">
+    <!-- Question Nav -->
+    <div class="question-nav">
+      <p style="font-size:.72rem;color:var(--dim);font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;">Questions</p>
+      <div class="q-nav-grid" id="navGrid"></div>
+      <div style="margin-top:16px;font-size:.72rem;color:var(--dim);">
+        <span style="display:inline-block;width:12px;height:12px;background:rgba(79,70,229,.2);border:1.5px solid var(--primary);border-radius:3px;vertical-align:middle;margin-right:4px;"></span>Answered<br>
+        <span style="display:inline-block;width:12px;height:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:3px;vertical-align:middle;margin-right:4px;margin-top:4px;"></span>Not Answered
+      </div>
+    </div>
+
+    <!-- Question Display -->
+    <div class="question-area">
+      <div class="current-question">
+        <div class="question-num" id="qNum"></div>
+        <div class="question-text" id="qText"></div>
+        <ul class="options-list" id="optionsList"></ul>
+        <div style="display:flex;gap:12px;margin-top:24px;align-items:center;">
+          <button class="nav-arrow" id="prevBtn" onclick="navigate(-1)">← Prev</button>
+          <button class="nav-arrow" id="nextBtn" onclick="navigate(1)">Next →</button>
+          <button class="btn btn-secondary btn-sm" onclick="clearAnswer()" style="margin-left:auto;">Clear Answer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Camera PIP -->
+<div id="camera-pip" style="display:none;">
+  <video id="camVideo" autoplay playsinline muted></video>
+  <div class="cam-label">🔴 LIVE</div>
+</div>
+
+<!-- Fullscreen Warning -->
+<div class="fullscreen-warn" id="fsWarn">
+  <div style="font-size:3rem;">🖥️</div>
+  <h2>Return to Fullscreen</h2>
+  <p>You exited fullscreen. Return to fullscreen or your exam will be auto-submitted.</p>
+  <button onclick="reEnterFullscreen()">Enter Fullscreen</button>
+</div>
+
+<!-- Anti-Cheat Overlay (auto-submit) -->
+<div id="cheat-overlay" style="position:fixed;inset:0;z-index:9999;background:rgba(239,68,68,.97);display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:40px;">
+  <div style="font-size:4rem;">🚨</div>
+  <h2 style="font-size:2rem;margin:16px 0 8px;">Exam Auto-Submitted</h2>
+  <p style="font-size:1.1rem;opacity:.9;">Tab switch or window change detected. Your exam has been submitted automatically.</p>
+  <button onclick="goToStudent()" style="margin-top:24px;background:#fff;color:#dc2626;border:none;padding:14px 32px;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;">View My Results</button>
+</div>
+
+<!-- Submit Confirm Modal -->
+<div id="submitModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Submit Exam?</h3>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('submitModal').classList.add('hidden')">✕</button>
+    </div>
+    <p id="submitSummary" class="mb-3"></p>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-danger w-full" onclick="submitExam(false)">Yes, Submit Now</button>
+      <button class="btn btn-secondary w-full" onclick="document.getElementById('submitModal').classList.add('hidden')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/exam.js"></script>
+</body>
+</html>
