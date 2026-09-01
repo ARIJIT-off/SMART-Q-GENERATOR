@@ -97,11 +97,15 @@ async function generateQuestions() {
 // keep old alias for legacy calls
 const generateMCQs = generateQuestions;
 
-function qTypeBadge(type, marks) {
-  if (type === 'mcq')  return `<span class="badge badge-info">MCQ</span>`;
-  if (type === 'saq')  return `<span class="badge badge-warning">SAQ ${marks}M</span>`;
-  if (type === 'laq')  return `<span class="badge badge-danger">LAQ ${marks}M</span>`;
-  return `<span class="badge badge-info">${type}</span>`;
+function qTypeBadge(type, marks, options = []) {
+  const rawQType = (type || 'mcq').toLowerCase();
+  const isMcqFallback = rawQType === 'mcq' && (!options || options.length === 0);
+  const finalType = isMcqFallback ? (marks >= 5 ? 'laq' : 'saq') : rawQType;
+
+  if (finalType === 'mcq')  return `<span class="badge badge-info">MCQ</span>`;
+  if (finalType === 'saq')  return `<span class="badge badge-warning">SAQ ${marks}M</span>`;
+  if (finalType === 'laq')  return `<span class="badge badge-danger">LAQ ${marks}M</span>`;
+  return `<span class="badge badge-info">${finalType}</span>`;
 }
 
 function renderPreview(questions) {
@@ -110,13 +114,18 @@ function renderPreview(questions) {
   panel.style.display = 'block';
   document.getElementById('previewCount').textContent = questions.length;
   const letters = ['A','B','C','D'];
-  list.innerHTML = questions.map((q, i) => `
+  list.innerHTML = questions.map((q, i) => {
+    const rawQType = (q.type || 'mcq').toLowerCase();
+    const isMcqFallback = rawQType === 'mcq' && (!q.options || q.options.length === 0);
+    const finalType = isMcqFallback ? (q.marks >= 5 ? 'laq' : 'saq') : rawQType;
+
+    return `
     <div class="question-card">
       <div class="question-num">
-        Q${i+1} · ${qTypeBadge(q.type, q.marks)} · <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span> · <span class="tag">${q.topic}</span>
+        Q${i+1} · ${qTypeBadge(q.type, q.marks, q.options)} · <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span> · <span class="tag">${q.topic}</span>
       </div>
       <div class="question-text">${q.text}</div>
-      ${q.type === 'mcq' ? `
+      ${finalType === 'mcq' ? `
         <ul class="options-list">
           ${(q.options||[]).map((o, oi) => `
             <li class="option-item ${oi === q.answerIndex ? 'correct' : ''}">
@@ -127,7 +136,8 @@ function renderPreview(questions) {
           <div style="font-size:0.75rem;color:var(--dim);margin-bottom:4px;">Model Answer</div>
           <div style="font-size:0.85rem;color:var(--text);">${q.modelAnswer || '—'}</div>
         </div>`}
-    </div>`).join('');
+    </div>`
+  }).join('');
 }
 
 function diffBadge(d) { return d === 'easy' ? 'success' : d === 'hard' ? 'danger' : 'warning'; }

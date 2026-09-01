@@ -81,7 +81,8 @@ RESPOND ONLY with a raw JSON array (no markdown fences). Each item follows this 
 
   // Normalise and validate
   return questions.map(q => {
-    const type = ['mcq', 'saq', 'laq'].includes(q.type) ? q.type : 'mcq';
+    const rawType = String(q.type || 'mcq').toLowerCase();
+    const type = ['mcq', 'saq', 'laq'].includes(rawType) ? rawType : 'mcq';
     const marks = Number(q.marks) || (type === 'mcq' ? 1 : type === 'saq' ? 1 : 5);
     return {
       type,

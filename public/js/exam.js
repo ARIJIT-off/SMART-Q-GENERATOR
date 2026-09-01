@@ -233,14 +233,20 @@ function renderQuestion(idx) {
   const q   = questions[idx];
   const ans = answers[idx];
   const letters = ['A','B','C','D'];
-  const qType = (q.type || 'mcq').toLowerCase();
+  const rawQType = (q.type || 'mcq').toLowerCase();
   const marks = q.marks || examData.marksPerQuestion || 1;
+
+  // Fallback for older questions generated before the SAQ/LAQ fix
+  // If it's flagged as MCQ but has 0 options, treat it as SAQ or LAQ based on marks
+  const isMcqFallback = rawQType === 'mcq' && (!q.options || q.options.length === 0);
+  const qType = isMcqFallback ? (marks >= 5 ? 'laq' : 'saq') : rawQType;
   const isMcq = qType === 'mcq';
 
   // Type badge
   let typeBadge = '<span style="background:rgba(79,70,229,.25);color:#818cf8;padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">✅ MCQ</span>';
   if (qType === 'saq') typeBadge = `<span style="background:rgba(245,158,11,.2);color:#fbbf24;padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">📝 SAQ — ${marks} Mark${marks > 1 ? 's' : ''}</span>`;
   if (qType === 'laq') typeBadge = `<span style="background:rgba(239,68,68,.2);color:#f87171;padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">📋 LAQ — ${marks} Marks</span>`;
+
 
   document.getElementById('qNum').innerHTML = `Question ${idx + 1} of ${questions.length} &nbsp;·&nbsp; ${typeBadge}`;
   document.getElementById('qText').textContent = q.text;
@@ -354,6 +360,18 @@ function goToQ(idx) {
   saveCurrentQTime();
   renderQuestion(idx);
 }
+
+// ── Notepad ───────────────────────────────────────────────────────────────
+function toggleNotepad() {
+  const panel = document.getElementById('notepadPanel');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'flex';
+    document.getElementById('notepadText').focus();
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
 
 function saveCurrentQTime() {
   answers[currentIdx].timeTakenSec += Math.round((Date.now() - qStartTime) / 1000);
