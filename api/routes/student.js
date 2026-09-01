@@ -1,13 +1,13 @@
-const express = require('express');
-const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
-const { sendResultEmail } = require('../services/emailService');
-const Exam = require('../models/Exam');
-const Question = require('../models/Question');
+const express    = require('express');
+const router     = express.Router();
+const { protect }           = require('../middleware/authMiddleware');
+const { sendResultEmail }   = require('../services/emailService');
+const { gradeTextAnswer }   = require('../services/mcqService');
+const Exam       = require('../models/Exam');
+const Question   = require('../models/Question');
 const Submission = require('../models/Submission');
 
-const { evaluateSubjectiveAnswer } = require('../services/mcqService');
-
+// ─── Score Calculator ───────────────────────────────────────────────────────
 async function calcScores(examId, answers) {
   const exam = await Exam.findById(examId).populate('questions');
   if (!exam) throw new Error('Exam not found');
@@ -15,45 +15,73 @@ async function calcScores(examId, answers) {
   const qMap = {};
   exam.questions.forEach(q => { qMap[q._id.toString()] = q; });
 
-  let correct = 0, wrong = 0, attended = 0, score = 0, maxScore = 0;
-  const topicMap = {};
+  let correct = 0, wrong = 0, attended = 0, score = 0;
+  let maxScore = 0;
+  const topicMap   = {};
+  const enriched   = [];   // answers enriched with AI grading for SAQ/LAQ
+  let   hasPending = false;
 
-  const evaluationPromises = answers.map(async (a) => {
+  for (const a of answers) {
     const q = qMap[a.questionId?.toString()];
-    if (!q) return a;
-    
-    maxScore += (q.marks || exam.marksPerQuestion);
-    
+    if (!q) { enriched.push(a); continue; }
+
     const topic = q.topic || 'General';
     if (!topicMap[topic]) topicMap[topic] = { correct: 0, total: 0 };
     topicMap[topic].total++;
 
-    if (q.type === 'MCQ' || !q.type) {
-      if (a.selectedIndex === -1 || a.selectedIndex === undefined) return a;
+    const answerEntry = {
+      questionId:    a.questionId,
+      questionType:  q.type || 'mcq',
+      questionMarks: q.type === 'mcq' ? exam.marksPerQuestion : q.marks,
+      selectedIndex: a.selectedIndex ?? -1,
+      textAnswer:    a.textAnswer    || '',
+      aiScore:       null,
+      aiFeedback:    '',
+      teacherScore:  null,
+      teacherNote:   '',
+      timeTakenSec:  a.timeTakenSec  || 0
+    };
+
+    if (q.type === 'mcq') {
+      maxScore += exam.marksPerQuestion;
+      if (a.selectedIndex === -1 || a.selectedIndex === undefined) {
+        enriched.push(answerEntry);
+        continue;
+      }
       attended++;
       if (a.selectedIndex === q.answerIndex) {
         correct++;
-        score += (q.marks || exam.marksPerQuestion);
+        score += exam.marksPerQuestion;
         topicMap[topic].correct++;
       } else {
         wrong++;
         score -= (exam.negativeMarking || 0);
       }
     } else {
-      if (!a.textAnswer || !a.textAnswer.trim()) return a;
+      // SAQ or LAQ — AI grade
+      maxScore += q.marks;
+      const text = (a.textAnswer || '').trim();
+      if (text.length < 3) {
+        // Unattempted
+        enriched.push(answerEntry);
+        continue;
+      }
       attended++;
-      // Evaluate subjective answer
-      const evaluation = await evaluateSubjectiveAnswer(q.text, q.idealAnswer, a.textAnswer, q.marks);
-      a.aiScore = evaluation.score;
-      a.teacherScore = evaluation.score; // default teacherScore to aiScore initially
-      a.aiFeedback = evaluation.feedback;
-      score += evaluation.score;
-      if (evaluation.score > 0) topicMap[topic].correct++; // loosely count partial marks as correct for topic tracking
+      try {
+        const { score: aiScore, feedback } = await gradeTextAnswer(
+          q.text, q.modelAnswer, q.marks, text
+        );
+        answerEntry.aiScore    = aiScore;
+        answerEntry.aiFeedback = feedback;
+        score += aiScore;
+        topicMap[topic].correct += aiScore / q.marks; // proportional credit
+      } catch {
+        hasPending = true; // mark for teacher review
+      }
     }
-    return a;
-  });
 
-  const evaluatedAnswers = await Promise.all(evaluationPromises);
+    enriched.push(answerEntry);
+  }
 
   const notAttended = answers.length - attended;
   const topicScores = {};
@@ -63,14 +91,12 @@ async function calcScores(examId, answers) {
   });
 
   return {
-    evaluatedAnswers,
-    stats: {
-      score: Math.max(0, parseFloat(score.toFixed(2))),
-      maxScore,
-      correct, wrong, attended, notAttended,
-      topicScores,
-      totalQuestions: answers.length
-    }
+    enrichedAnswers: enriched,
+    score:           Math.max(0, parseFloat(score.toFixed(2))),
+    maxScore,
+    correct, wrong, attended, notAttended,
+    topicScores,
+    gradingPending: hasPending
   };
 }
 
@@ -87,32 +113,30 @@ router.post('/submit', protect, async (req, res) => {
       submissionId: existing._id
     });
 
-    const { evaluatedAnswers, stats } = await calcScores(examId, answers);
+    const { enrichedAnswers, score, maxScore, correct, wrong, attended, notAttended, topicScores, gradingPending } =
+      await calcScores(examId, answers);
+
     const exam = await Exam.findById(examId);
 
     const submission = await Submission.create({
       examId,
-      studentId: req.user._id,
-      studentName: req.user.name || req.user.email,
+      studentId:    req.user._id,
+      studentName:  req.user.name || req.user.email,
       studentEmail: req.user.email,
-      location: location || { lat: 0, lng: 0, city: 'Unknown', country: 'Unknown' },
-      answers: evaluatedAnswers,
+      location:     location || { lat: 0, lng: 0, city: 'Unknown', country: 'Unknown' },
+      answers:      enrichedAnswers,
       cheatingAttempted: cheatingAttempted || false,
-      cheatingEvents: cheatingEvents || [],
-      autoSubmitted: autoSubmitted || false,
-      totalTimeSec: totalTimeSec || 0,
-      ...stats
+      cheatingEvents:    cheatingEvents    || [],
+      autoSubmitted:     autoSubmitted     || false,
+      totalTimeSec:      totalTimeSec      || 0,
+      score, maxScore, correct, wrong, attended, notAttended, topicScores, gradingPending
     });
 
     sendResultEmail(
       req.user.email,
       req.user.name || req.user.email,
-      exam?.title || 'Exam',
-      stats.score,
-      stats.maxScore,
-      stats.correct,
-      stats.wrong,
-      evaluatedAnswers.length
+      exam?.title   || 'Exam',
+      score, maxScore, correct, wrong, answers.length
     ).catch(() => {});
 
     res.status(201).json({ submission, submissionId: submission._id });
@@ -132,31 +156,36 @@ router.get('/result/:submissionId', protect, async (req, res) => {
     if (!submission) return res.status(404).json({ message: 'Submission not found' });
 
     const exam = await Exam.findById(submission.examId).populate('questions');
+    const qMap = {};
+    exam?.questions.forEach(q => { qMap[q._id.toString()] = q; });
 
     const enrichedAnswers = submission.answers.map(a => {
-      const q = exam?.questions.find(q => q._id.toString() === a.questionId?.toString());
+      const q = qMap[a.questionId?.toString()];
       return {
-        questionId: a.questionId,
-        questionText: q?.text || 'Question unavailable',
-        type: q?.type || 'MCQ',
-        marks: q?.marks || exam?.marksPerQuestion || 1,
-        options: q?.options || [],
+        questionId:    a.questionId,
+        questionText:  q?.text        || 'Question unavailable',
+        questionType:  q?.type        || a.questionType || 'mcq',
+        marks:         q?.marks       || 1,
+        modelAnswer:   q?.modelAnswer || '',
+        // MCQ
+        options:       q?.options     || [],
         selectedIndex: a.selectedIndex,
-        correctIndex: q?.answerIndex,
-        textAnswer: a.textAnswer,
-        aiScore: a.aiScore,
-        teacherScore: a.teacherScore,
-        aiFeedback: a.aiFeedback,
-        idealAnswer: q?.idealAnswer,
-        topic: q?.topic || 'General',
-        difficulty: q?.difficulty || 'medium',
-        timeTakenSec: a.timeTakenSec || 0,
-        isCorrect: (q?.type === 'MCQ' || !q?.type) 
-          ? (a.selectedIndex !== -1 && a.selectedIndex === q?.answerIndex)
-          : (a.teacherScore > 0),
-        isAttended: (q?.type === 'MCQ' || !q?.type) 
-          ? (a.selectedIndex !== -1)
-          : (!!a.textAnswer)
+        correctIndex:  q?.answerIndex,
+        // SAQ / LAQ
+        textAnswer:    a.textAnswer   || '',
+        aiScore:       a.aiScore,
+        aiFeedback:    a.aiFeedback   || '',
+        teacherScore:  a.teacherScore,
+        teacherNote:   a.teacherNote  || '',
+        // Common
+        topic:         q?.topic       || 'General',
+        difficulty:    q?.difficulty  || 'medium',
+        timeTakenSec:  a.timeTakenSec || 0,
+        isCorrect:     a.questionType !== 'mcq' ? null
+          : (a.selectedIndex !== -1 && a.selectedIndex === q?.answerIndex),
+        isAttended:    a.questionType === 'mcq'
+          ? a.selectedIndex !== -1
+          : (a.textAnswer || '').trim().length > 0
       };
     });
 
@@ -164,10 +193,10 @@ router.get('/result/:submissionId', protect, async (req, res) => {
       submission,
       enrichedAnswers,
       exam: {
-        title: exam?.title,
-        duration: exam?.duration,
+        title:            exam?.title,
+        duration:         exam?.duration,
         marksPerQuestion: exam?.marksPerQuestion,
-        negativeMarking: exam?.negativeMarking
+        negativeMarking:  exam?.negativeMarking
       }
     });
   } catch (err) {

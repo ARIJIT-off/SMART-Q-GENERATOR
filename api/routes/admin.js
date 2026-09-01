@@ -1,17 +1,18 @@
 const express = require('express');
-const router = express.Router();
-const multer = require('multer');
-const { protect } = require('../middleware/authMiddleware');
-const { requireRole } = require('../middleware/roleMiddleware');
-const { generateQuestionsFromPDF } = require('../services/mcqService');
-const { sendExamLinkEmail } = require('../services/emailService');
-const Question = require('../models/Question');
-const Exam = require('../models/Exam');
+const router  = express.Router();
+const multer  = require('multer');
+const { protect }      = require('../middleware/authMiddleware');
+const { requireRole }  = require('../middleware/roleMiddleware');
+const { generateMixedQuestions } = require('../services/mcqService');
+const { sendExamLinkEmail }      = require('../services/emailService');
+const Question   = require('../models/Question');
+const Exam       = require('../models/Exam');
 const Submission = require('../models/Submission');
 
+// ─── Multer ────────────────────────────────────────────────────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') cb(null, true);
     else cb(new Error('Only PDF files are allowed'), false);
@@ -19,34 +20,35 @@ const upload = multer({
 });
 
 // POST /api/admin/upload-syllabus
-router.post('/upload-syllabus', protect, requireRole('admin'), upload.fields([{ name: 'syllabus', maxCount: 1 }, { name: 'pyq', maxCount: 1 }]), async (req, res) => {
-  try {
-    if (!req.files || !req.files.syllabus) return res.status(400).json({ message: 'Syllabus PDF is required' });
-    
-    const breakdown = {
-      mcq: parseInt(req.body.mcq) || 0,
-      saq1: parseInt(req.body.saq1) || 0,
-      saq2: parseInt(req.body.saq2) || 0,
-      laq5: parseInt(req.body.laq5) || 0,
-      laq10: parseInt(req.body.laq10) || 0
-    };
-    
-    // Default fallback if nothing specified
-    if (Object.values(breakdown).reduce((a,b)=>a+b, 0) === 0) breakdown.mcq = 20;
+// Fields: syllabus (required), pyq (optional)
+router.post('/upload-syllabus',
+  protect, requireRole('admin'),
+  upload.fields([
+    { name: 'syllabus', maxCount: 1 },
+    { name: 'pyq',      maxCount: 1 }
+  ]),
+  async (req, res) => {
+    try {
+      if (!req.files?.syllabus?.[0]) return res.status(400).json({ message: 'No syllabus PDF uploaded' });
 
-    const pyqBuffer = req.files.pyq ? req.files.pyq[0].buffer : null;
-    const generated = await generateQuestionsFromPDF(req.files.syllabus[0].buffer, pyqBuffer, breakdown);
-    
-    const pdfName = req.files.syllabus[0].originalname;
-    const batchId = Date.now().toString();
-    const questions = generated.map(q => ({ ...q, pdfName, batchId }));
-    
-    res.json({ questions, count: questions.length });
-  } catch (err) {
-    console.error('Question gen error:', err.message);
-    res.status(500).json({ message: err.message });
+      // Parse question counts
+      let counts = { mcq: 5, saq1: 0, saq2: 0, laq5: 0, laq10: 0 };
+      try { counts = { ...counts, ...JSON.parse(req.body.questionCounts || '{}') }; } catch {}
+
+      const pyqBuffer = req.files?.pyq?.[0]?.buffer || null;
+      const generated = await generateMixedQuestions(req.files.syllabus[0].buffer, counts, pyqBuffer);
+
+      const pdfName = req.files.syllabus[0].originalname;
+      const batchId = Date.now().toString();
+      const questions = generated.map(q => ({ ...q, pdfName, batchId }));
+
+      res.json({ questions, count: questions.length });
+    } catch (err) {
+      console.error('Question gen error:', err.message);
+      res.status(500).json({ message: err.message });
+    }
   }
-});
+);
 
 // POST /api/admin/questions/save
 router.post('/questions/save', protect, requireRole('admin'), async (req, res) => {
@@ -96,6 +98,62 @@ router.delete('/questions/:id', protect, requireRole('admin'), async (req, res) 
   }
 });
 
+// ─── Teacher: Override a student's non-MCQ answer mark ────────────────────
+// PATCH /api/admin/submissions/:submissionId/grade-answer
+router.patch('/submissions/:submissionId/grade-answer', protect, requireRole('admin'), async (req, res) => {
+  try {
+    const { questionId, score, note } = req.body;
+    if (score == null || !questionId) return res.status(400).json({ message: 'questionId and score required' });
+
+    const submission = await Submission.findById(req.params.submissionId);
+    if (!submission) return res.status(404).json({ message: 'Submission not found' });
+
+    // Verify exam belongs to this teacher
+    const exam = await Exam.findOne({ _id: submission.examId, createdBy: req.user._id });
+    if (!exam) return res.status(403).json({ message: 'Not authorised' });
+
+    // Update specific answer
+    let found = false;
+    submission.answers = submission.answers.map(a => {
+      if (a.questionId?.toString() === questionId) {
+        found = true;
+        a.teacherScore = Math.max(0, parseFloat(score));
+        a.teacherNote  = note || '';
+      }
+      return a;
+    });
+    if (!found) return res.status(404).json({ message: 'Answer not found' });
+
+    // Recalculate total score
+    let newScore = 0;
+    const questions = await Question.find({ _id: { $in: submission.answers.map(a => a.questionId) } });
+    const qMap = {};
+    questions.forEach(q => qMap[q._id.toString()] = q);
+
+    submission.answers.forEach(a => {
+      const q = qMap[a.questionId?.toString()];
+      if (!q) return;
+      if (q.type === 'mcq') {
+        if (a.selectedIndex !== -1 && a.selectedIndex === q.answerIndex) newScore += exam.marksPerQuestion;
+        else if (a.selectedIndex !== -1) newScore -= (exam.negativeMarking || 0);
+      } else {
+        // Use teacher override if set, otherwise AI score
+        const finalScore = a.teacherScore != null ? a.teacherScore : (a.aiScore || 0);
+        newScore += finalScore;
+      }
+    });
+
+    submission.score = Math.max(0, parseFloat(newScore.toFixed(2)));
+    await submission.save();
+
+    res.json({ message: 'Score updated', newTotalScore: submission.score });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ─── Exams ──────────────────────────────────────────────────────────────────
+
 // POST /api/admin/exams
 router.post('/exams', protect, requireRole('admin'), async (req, res) => {
   try {
@@ -123,7 +181,7 @@ router.post('/exams', protect, requireRole('admin'), async (req, res) => {
 router.get('/exams', protect, requireRole('admin'), async (req, res) => {
   try {
     const exams = await Exam.find({ createdBy: req.user._id })
-      .populate('questions', 'text topic')
+      .populate('questions', 'text topic type marks')
       .sort({ createdAt: -1 });
     res.json({ exams });
   } catch (err) {
@@ -184,46 +242,35 @@ router.get('/exams/:id/results', protect, requireRole('admin'), async (req, res)
     const submissions = await Submission.find({ examId: req.params.id })
       .sort({ submittedAt: -1 });
 
-    res.json({ exam, submissions });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// PATCH /api/admin/exams/:examId/submissions/:subId/override
-router.patch('/exams/:examId/submissions/:subId/override', protect, requireRole('admin'), async (req, res) => {
-  try {
-    const { questionId, newScore } = req.body;
-    const submission = await Submission.findOne({ _id: req.params.subId, examId: req.params.examId });
-    if (!submission) return res.status(404).json({ message: 'Submission not found' });
-
-    const ansIndex = submission.answers.findIndex(a => a.questionId.toString() === questionId);
-    if (ansIndex === -1) return res.status(404).json({ message: 'Answer not found in submission' });
-
-    submission.answers[ansIndex].teacherScore = Number(newScore);
-    
-    // Recalculate total score
-    const exam = await Exam.findById(req.params.examId).populate('questions');
-    let newTotalScore = 0;
-    
-    submission.answers.forEach(a => {
-      const q = exam.questions.find(q => q._id.toString() === a.questionId.toString());
-      if (!q) return;
-      if (q.type === 'MCQ' || !q.type) {
-        if (a.selectedIndex !== -1 && a.selectedIndex === q.answerIndex) {
-          newTotalScore += (q.marks || exam.marksPerQuestion);
-        } else if (a.selectedIndex !== -1) {
-          newTotalScore -= (exam.negativeMarking || 0);
-        }
-      } else {
-        newTotalScore += (a.teacherScore !== undefined ? a.teacherScore : (a.aiScore || 0));
-      }
+    // Enrich each submission's answers with question metadata
+    const enriched = submissions.map(sub => {
+      const qMap = {};
+      exam.questions.forEach(q => qMap[q._id.toString()] = q);
+      const enrichedAnswers = sub.answers.map(a => {
+        const q = qMap[a.questionId?.toString()];
+        return {
+          questionId:   a.questionId,
+          questionText: q?.text || '—',
+          questionType: q?.type || a.questionType || 'mcq',
+          marks:        q?.marks || 1,
+          modelAnswer:  q?.modelAnswer || '',
+          // MCQ fields
+          options:      q?.options || [],
+          selectedIndex:a.selectedIndex,
+          correctIndex: q?.answerIndex,
+          // SAQ/LAQ fields
+          textAnswer:   a.textAnswer || '',
+          aiScore:      a.aiScore,
+          aiFeedback:   a.aiFeedback || '',
+          teacherScore: a.teacherScore,
+          teacherNote:  a.teacherNote || '',
+          timeTakenSec: a.timeTakenSec || 0
+        };
+      });
+      return { ...sub.toObject(), enrichedAnswers };
     });
-    
-    submission.score = Math.max(0, parseFloat(newTotalScore.toFixed(2)));
-    await submission.save();
 
-    res.json({ message: 'Score updated', submission });
+    res.json({ exam, submissions: enriched });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

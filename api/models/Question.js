@@ -1,12 +1,25 @@
 const mongoose = require('mongoose');
 
 const questionSchema = new mongoose.Schema({
+  // Question content
   text: { type: String, required: true },
-  type: { type: String, enum: ['MCQ', 'SAQ_1', 'SAQ_2', 'LAQ_5', 'LAQ_10'], default: 'MCQ' },
-  marks: { type: Number, default: 1 },
-  options: [{ type: String }],
-  answerIndex: { type: Number },
-  idealAnswer: { type: String }, // Used by AI to grade subjective questions
+
+  // MCQ only
+  options: [{ type: String }],          // exactly 4 for MCQ, empty for SAQ/LAQ
+  answerIndex: { type: Number },        // 0-3 for MCQ, null for SAQ/LAQ
+
+  // Question type & marks
+  type: {
+    type: String,
+    enum: ['mcq', 'saq', 'laq'],
+    default: 'mcq'
+  },
+  marks: { type: Number, default: 1 }, // mcq=1(from exam), saq=1|2, laq=5|10
+
+  // For AI grading of SAQ/LAQ
+  modelAnswer: { type: String, default: '' },
+
+  // Metadata
   topic: { type: String, default: 'General', trim: true },
   difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' },
   source: { type: String, default: 'ai-generated' },

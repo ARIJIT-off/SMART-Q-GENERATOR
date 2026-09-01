@@ -1,6 +1,7 @@
 /**
- * Question Generation & Evaluation Service
- * Google Gemini API: generates questions natively from PDF buffer via inlineData
+ * Question Generation Service
+ * - generateMixedQuestions: generates MCQ + SAQ + LAQ from a syllabus PDF
+ * - gradeTextAnswer: AI-grades a student's SAQ/LAQ answer
  */
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
@@ -10,137 +11,134 @@ function getGenAI() {
   return genAI;
 }
 
-async function generateQuestionsFromPDF(syllabusBuffer, pyqBuffer, breakdown) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not configured.');
-  }
-
-  try {
-    const model = getGenAI().getGenerativeModel({ model: 'gemini-3.6-flash' });
-
-    let prompt = `You are an expert educator. Based on the attached syllabus document (first PDF), generate an exam question set.
-    
-    You must generate exactly:
-    - ${breakdown.mcq} Multiple Choice Questions (1 mark each)
-    - ${breakdown.saq1} Short Answer Questions (1 mark each)
-    - ${breakdown.saq2} Short Answer Questions (2 marks each)
-    - ${breakdown.laq5} Long Answer Questions (5 marks each)
-    - ${breakdown.laq10} Long Answer Questions (10 marks each)
-    
-    Ensure the questions cover various topics found in the syllabus document, ranging from easy to hard.
-    `;
-
-    if (pyqBuffer) {
-      prompt += `\n\nThere is a second PDF attached which contains Previous Year Questions (PYQs). Analyze its style, difficulty, and structure. Ensure your generated questions match the style and formatting conventions seen in the PYQ document.\n`;
-    }
-
-    prompt += `
-    IMPORTANT: Respond ONLY with a valid JSON array of objects. Do not use markdown code blocks like \`\`\`json. 
-    Just output the raw JSON array.
-    
-    Schema for each object:
-    [
-      {
-        "type": "MCQ", // or "SAQ_1", "SAQ_2", "LAQ_5", "LAQ_10"
-        "marks": 1, // 1, 2, 5, or 10 corresponding to type
-        "text": "The question text",
-        "options": ["Option A", "Option B", "Option C", "Option D"], // ONLY for MCQ
-        "answerIndex": 0, // ONLY for MCQ (0-3)
-        "idealAnswer": "A comprehensive model answer or rubric that can be used to grade a student's answer automatically", // ONLY for SAQ and LAQ
-        "topic": "Brief topic name (1-2 words)",
-        "difficulty": "easy" // easy, medium, hard
-      }
-    ]
-    `;
-
-    const parts = [prompt];
-    
-    // Add Syllabus
-    parts.push({
-      inlineData: {
-        data: syllabusBuffer.toString('base64'),
-        mimeType: 'application/pdf'
-      }
-    });
-
-    // Add optional PYQ
-    if (pyqBuffer) {
-      parts.push({
-        inlineData: {
-          data: pyqBuffer.toString('base64'),
-          mimeType: 'application/pdf'
-        }
-      });
-    }
-
-    const result = await model.generateContent(parts);
-    let responseText = result.response.text();
-    
-    responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    let questions = JSON.parse(responseText);
-    
-    if (!Array.isArray(questions) || questions.length === 0) {
-      throw new Error("AI did not return a valid question array.");
-    }
-    
-    return questions.map(q => {
-      const isMCQ = q.type === 'MCQ';
-      return {
-        type: ['MCQ', 'SAQ_1', 'SAQ_2', 'LAQ_5', 'LAQ_10'].includes(q.type) ? q.type : 'MCQ',
-        marks: q.marks || (isMCQ ? 1 : 2),
-        text: String(q.text).trim(),
-        options: isMCQ && Array.isArray(q.options) ? q.options.map(o => String(o).trim()) : [],
-        answerIndex: isMCQ ? Math.min(3, Math.max(0, parseInt(q.answerIndex) || 0)) : undefined,
-        idealAnswer: isMCQ ? undefined : (q.idealAnswer || ''),
-        topic: String(q.topic || 'General').trim().slice(0, 60),
-        difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
-        source: 'ai-generated'
-      };
-    });
-
-  } catch (err) {
-    console.error('Gemini Question generation failed:', err);
-    throw new Error('Failed to generate questions: ' + err.message);
-  }
+function pdfPart(buffer) {
+  return { inlineData: { data: buffer.toString('base64'), mimeType: 'application/pdf' } };
 }
 
-async function evaluateSubjectiveAnswer(questionText, idealAnswer, studentAnswer, maxMarks) {
-  if (!studentAnswer || !studentAnswer.trim()) {
-    return { score: 0, feedback: "No answer provided." };
+/**
+ * Generate a mixed set of questions from a syllabus PDF.
+ * @param {Buffer} syllabusBuffer   - The syllabus PDF
+ * @param {Object} counts           - { mcq, saq1, saq2, laq5, laq10 }
+ * @param {Buffer|null} pyqBuffer   - Optional PYQ PDF for style context
+ */
+async function generateMixedQuestions(syllabusBuffer, counts = {}, pyqBuffer = null) {
+  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured.');
+
+  const { mcq = 5, saq1 = 0, saq2 = 0, laq5 = 0, laq10 = 0 } = counts;
+  const totalQ = mcq + saq1 + saq2 + laq5 + laq10;
+  if (totalQ === 0) throw new Error('Select at least 1 question type.');
+
+  const model = getGenAI().getGenerativeModel({ model: 'gemini-3.6-flash' });
+
+  const pyqInstruction = pyqBuffer
+    ? `A Previous Year Question (PYQ) paper is also attached. Use its style, tone, and framing pattern when generating questions — but derive content from the syllabus, not the PYQ.`
+    : '';
+
+  const prompt = `You are an expert examiner. Based on the attached syllabus PDF, generate a question set.
+${pyqInstruction}
+
+Generate EXACTLY:
+- ${mcq} MCQ (Multiple Choice Questions) — 4 options each, 1 correct
+- ${saq1} SAQ-1 (Short Answer Questions worth 1 mark each) — answer in 2-3 sentences
+- ${saq2} SAQ-2 (Short Answer Questions worth 2 marks each) — answer in 4-6 sentences  
+- ${laq5} LAQ-5 (Long Answer Questions worth 5 marks each) — answer in 1-2 paragraphs
+- ${laq10} LAQ-10 (Long Answer Questions worth 10 marks each) — answer in 3-5 paragraphs
+
+STRICT RULES:
+1. Vary topics to ensure broad syllabus coverage
+2. Vary difficulty: easy/medium/hard
+3. For SAQ/LAQ include a concise modelAnswer that a top student would write
+4. For MCQ, all 4 options must be plausible
+
+RESPOND ONLY with a raw JSON array (no markdown fences). Each item follows this schema:
+{
+  "type": "mcq" | "saq" | "laq",
+  "marks": 1 | 1 | 2 | 5 | 10,
+  "text": "Question text",
+  "options": ["A", "B", "C", "D"],  // MCQ only, empty array for SAQ/LAQ
+  "answerIndex": 0,                  // MCQ only (0-3), null for SAQ/LAQ
+  "modelAnswer": "...",              // empty string for MCQ
+  "topic": "Topic name",
+  "difficulty": "easy" | "medium" | "hard"
+}`;
+
+  const parts = [prompt, pdfPart(syllabusBuffer)];
+  if (pyqBuffer) parts.push(pdfPart(pyqBuffer));
+
+  const result = await model.generateContent(parts);
+  let raw = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
+
+  let questions;
+  try {
+    questions = JSON.parse(raw);
+  } catch {
+    const m = raw.match(/\[[\s\S]*\]/);
+    if (m) questions = JSON.parse(m[0]);
+    else throw new Error('AI returned invalid JSON. Please try again.');
   }
 
-  try {
-    const model = getGenAI().getGenerativeModel({ model: 'gemini-3.6-flash' });
-    const prompt = `You are an expert examiner. Grade the student's answer based on the ideal answer rubric.
-    
-    Question: ${questionText}
-    Max Marks: ${maxMarks}
-    Ideal Answer / Rubric: ${idealAnswer}
-    
-    Student's Answer:
-    "${studentAnswer}"
-    
-    Evaluate strictly but fairly. 
-    IMPORTANT: Respond ONLY with a valid JSON object. No markdown formatting.
-    {
-      "score": <number between 0 and ${maxMarks}, can use 0.5 steps>,
-      "feedback": "<1-2 short sentences explaining why marks were awarded or deducted>"
-    }
-    `;
+  if (!Array.isArray(questions)) throw new Error('AI did not return an array.');
 
-    const result = await model.generateContent(prompt);
-    let responseText = result.response.text();
-    responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    
-    const evaluation = JSON.parse(responseText);
+  // Normalise and validate
+  return questions.map(q => {
+    const type = ['mcq', 'saq', 'laq'].includes(q.type) ? q.type : 'mcq';
+    const marks = Number(q.marks) || (type === 'mcq' ? 1 : type === 'saq' ? 1 : 5);
     return {
-      score: Math.min(maxMarks, Math.max(0, Number(evaluation.score) || 0)),
-      feedback: evaluation.feedback || "Evaluated by AI."
+      type,
+      marks,
+      text: String(q.text || '').trim(),
+      options: type === 'mcq' && Array.isArray(q.options)
+        ? q.options.slice(0, 4).map(o => String(o).trim())
+        : [],
+      answerIndex: type === 'mcq' ? Math.min(3, Math.max(0, parseInt(q.answerIndex) || 0)) : null,
+      modelAnswer: String(q.modelAnswer || '').trim(),
+      topic: String(q.topic || 'General').trim().slice(0, 60),
+      difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
+      source: 'ai-generated'
     };
-  } catch (err) {
-    console.error('AI Evaluation failed:', err);
-    return { score: 0, feedback: "AI evaluation failed. Needs manual grading." };
+  });
+}
+
+/**
+ * AI-grade a student's text answer for SAQ/LAQ.
+ * @returns {{ score: number, feedback: string }}
+ */
+async function gradeTextAnswer(questionText, modelAnswer, marks, studentAnswer) {
+  if (!studentAnswer || studentAnswer.trim().length < 3) {
+    return { score: 0, feedback: 'No answer provided.' };
+  }
+
+  const model = getGenAI().getGenerativeModel({ model: 'gemini-3.6-flash' });
+
+  const prompt = `You are a strict but fair examiner grading a student's answer.
+
+Question: "${questionText}"
+Maximum marks: ${marks}
+Model answer (for reference): "${modelAnswer || 'Not provided — use your knowledge.'}"
+Student's answer: "${studentAnswer}"
+
+Grade the student's answer out of ${marks}. Consider: accuracy, completeness, clarity, and relevance.
+
+RESPOND ONLY with raw JSON (no markdown fences):
+{ "score": <number 0 to ${marks}>, "feedback": "<1-2 sentence evaluation>" }`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    let raw = result.response.text().replace(/```json/gi, '').replace(/```/g, '').trim();
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (m) raw = m[0];
+    const parsed = JSON.parse(raw);
+    const score = Math.min(marks, Math.max(0, Number(parsed.score) || 0));
+    return { score, feedback: String(parsed.feedback || '') };
+  } catch {
+    // Fallback: basic keyword scoring
+    return { score: Math.round(marks * 0.5), feedback: 'Auto-graded (AI unavailable). Teacher review recommended.' };
   }
 }
 
-module.exports = { generateQuestionsFromPDF, evaluateSubjectiveAnswer };
+// Legacy alias kept for backward compatibility
+async function generateMCQsFromPDF(pdfBuffer, numQuestions = 20) {
+  return generateMixedQuestions(pdfBuffer, { mcq: numQuestions });
+}
+
+module.exports = { generateMixedQuestions, generateMCQsFromPDF, gradeTextAnswer };

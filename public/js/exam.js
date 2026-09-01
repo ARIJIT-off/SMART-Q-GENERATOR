@@ -230,22 +230,52 @@ function buildNavGrid() {
 function renderQuestion(idx) {
   currentIdx = idx;
   qStartTime = Date.now();
-  const q = questions[idx];
+  const q   = questions[idx];
   const ans = answers[idx];
   const letters = ['A','B','C','D'];
+  const qType = (q.type || 'mcq').toLowerCase();
+  const marks = q.marks || examData.marksPerQuestion || 1;
 
-  document.getElementById('qNum').textContent = `Question ${idx + 1} of ${questions.length} • ${q.marks || examData.marksPerQuestion || 1} Marks`;
+  // Type badge label
+  let typeBadge = '✅ MCQ';
+  if (qType === 'saq') typeBadge = `📝 SAQ — ${marks} Mark${marks > 1 ? 's' : ''}`;
+  if (qType === 'laq') typeBadge = `📋 LAQ — ${marks} Marks`;
+
+  document.getElementById('qNum').textContent = `Question ${idx + 1} of ${questions.length} · ${typeBadge}`;
   document.getElementById('qText').textContent = q.text;
-  document.getElementById('qProgress').textContent = `${answers.filter(a => a.selectedIndex !== -1 || a.textAnswer.trim().length > 0).length}/${questions.length} answered`;
+  document.getElementById('qProgress').textContent =
+    `${answers.filter(a => a.selectedIndex !== -1 || (a.textAnswer||'').trim().length > 0).length}/${questions.length} answered`;
 
   const optionsContainer = document.getElementById('optionsList');
-  if (q.type === 'MCQ' || !q.type) {
-    optionsContainer.innerHTML = q.options.map((o, oi) => `
+  if (qType === 'mcq') {
+    optionsContainer.innerHTML = (q.options||[]).map((o, oi) => `
       <li class="option-item ${oi === ans.selectedIndex ? 'selected' : ''}" onclick="selectOption(${oi})">
         <span class="option-letter">${letters[oi]}</span>${o}
       </li>`).join('');
   } else {
-    optionsContainer.innerHTML = `<textarea id="saqTextarea" placeholder="Type your answer here..." oninput="updateTextAnswer(this.value)" style="width: 100%; min-height: 150px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 1rem; resize: vertical;">${ans.textAnswer || ''}</textarea>`;
+    // SAQ: 4 rows, LAQ: 10 rows
+    const rows = qType === 'saq' ? 4 : 10;
+    const hint = qType === 'saq'
+      ? 'Write a concise answer (2–6 sentences).'
+      : 'Write a detailed answer with full explanation.';
+    const wordCount = (ans.textAnswer||'').trim().split(/\s+/).filter(Boolean).length;
+    optionsContainer.innerHTML = `
+      <div style="margin-bottom:6px;font-size:0.78rem;color:var(--dim);">${hint}</div>
+      <textarea id="ansTextarea"
+        placeholder="Type your answer here…"
+        oninput="updateTextAnswer(this.value)"
+        rows="${rows}"
+        style="width:100%;padding:14px;border:1px solid var(--border);border-radius:8px;
+               background:var(--surface);color:var(--text);font-family:inherit;
+               font-size:1rem;resize:vertical;line-height:1.6;"
+      >${ans.textAnswer || ''}</textarea>
+      <div id="wordCountEl" style="text-align:right;font-size:0.75rem;color:var(--dim);margin-top:4px;">${wordCount} words</div>`;
+
+    // Live word count update
+    document.getElementById('ansTextarea').addEventListener('input', function() {
+      const wc = this.value.trim().split(/\s+/).filter(Boolean).length;
+      document.getElementById('wordCountEl').textContent = wc + ' words';
+    });
   }
 
   document.getElementById('prevBtn').disabled = idx === 0;
@@ -254,10 +284,11 @@ function renderQuestion(idx) {
   // Update nav grid
   document.querySelectorAll('.q-nav-btn').forEach((b, i) => {
     b.classList.toggle('active', i === idx);
-    const isAns = answers[i].selectedIndex !== -1 || answers[i].textAnswer.trim().length > 0;
+    const isAns = answers[i].selectedIndex !== -1 || (answers[i].textAnswer||'').trim().length > 0;
     b.classList.toggle('answered', isAns);
   });
 }
+
 
 function selectOption(optionIdx) {
   answers[currentIdx].selectedIndex = optionIdx;

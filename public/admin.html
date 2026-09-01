@@ -38,72 +38,74 @@
   <!-- ── Tab: Upload & Generate ── -->
   <div id="tab-upload" class="tab-panel active">
     <div class="gen-grid">
-        <div class="card mb-4">
-          <h3 style="margin-bottom:16px;">Step 1: Upload Source Material</h3>
-          <div style="display:flex; gap:16px; flex-wrap:wrap;">
-            <div style="flex:1; min-width:280px;">
-              <label style="font-weight:600;margin-bottom:8px;display:block;">Syllabus / Notes PDF (Required)</label>
-              <div class="upload-zone" id="uploadZone" style="padding:24px;">
-                <div class="upload-icon">📄</div>
-                <p style="color:var(--text);font-weight:600;">Drag &amp; drop PDF here</p>
-                <p class="text-sm" style="margin-top:6px;">or click to browse</p>
-                </div>
-              <input type="file" id="pdfFile" accept=".pdf" style="display:none">
-              <p id="fileName" class="text-sm mt-2" style="color:var(--dim);"></p>
-            </div>
-            
-            <div style="flex:1; min-width:280px;">
-              <label style="font-weight:600;margin-bottom:8px;display:block;">PYQ Context PDF (Optional)</label>
-              <div class="upload-zone" id="pyqZone" style="padding:24px; border-style:dashed; border-color:var(--dim);">
-                <div class="upload-icon">📝</div>
-                <p style="color:var(--text);font-weight:600;">Drag &amp; drop PYQs here</p>
-                <p class="text-sm" style="margin-top:6px;">Analyzes style & difficulty</p>
-                </div>
-              <input type="file" id="pyqFile" accept=".pdf" style="display:none">
-              <p id="pyqFileName" class="text-sm mt-2" style="color:var(--dim);"></p>
-            </div>
-          </div>
-
-          <h3 style="margin:24px 0 16px;">Step 2: Define Question Breakdown</h3>
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:12px;" class="mb-3">
-            <div class="form-group">
-              <label>MCQ (1m)</label>
-              <input type="number" class="form-control" id="q_mcq" value="5" min="0">
-            </div>
-            <div class="form-group">
-              <label>SAQ (1m)</label>
-              <input type="number" class="form-control" id="q_saq1" value="0" min="0">
-            </div>
-            <div class="form-group">
-              <label>SAQ (2m)</label>
-              <input type="number" class="form-control" id="q_saq2" value="0" min="0">
-            </div>
-            <div class="form-group">
-              <label>LAQ (5m)</label>
-              <input type="number" class="form-control" id="q_laq5" value="0" min="0">
-            </div>
-            <div class="form-group">
-              <label>LAQ (10m)</label>
-              <input type="number" class="form-control" id="q_laq10" value="0" min="0">
-            </div>
-          </div>
-
-          <button class="btn btn-primary" id="genBtn" onclick="generateMCQs()" style="width:100%;">
-            <span id="genText">🤖 Generate Questions</span>
-            <span id="genSpinner" class="spinner hidden"></span>
-          </button>
-          <div id="genMsg" class="mt-2"></div>
+      <div>
+        <h3 style="margin-bottom:16px;">📄 Upload Syllabus PDF</h3>
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">📄</div>
+          <p style="color:var(--text);font-weight:600;">Drag &amp; drop Syllabus PDF here</p>
+          <p class="text-sm" style="margin-top:6px;">or click to browse</p>
+          <input type="file" id="pdfFile" accept=".pdf" style="display:none">
         </div>
+        <p id="fileName" class="text-sm mt-2" style="color:var(--dim);"></p>
+
+        <!-- PYQ Upload -->
+        <div style="margin-top:12px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('pyqFile').click()">
+              📜 Upload PYQ for Style Analysis
+            </button>
+            <span id="pyqFileName" class="text-sm" style="color:var(--dim);">optional — helps AI frame better questions</span>
+          </div>
+          <input type="file" id="pyqFile" accept=".pdf" style="display:none" onchange="onPyqSelected()">
+        </div>
+
+        <!-- Question type counts -->
+        <div style="margin-top:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <label style="font-weight:600;">Question Breakdown</label>
+            <span style="font-size:0.82rem;color:var(--dim);">Total: <b id="totalQCount">5</b></span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:0.8rem;">✅ MCQ (auto-graded)</label>
+              <input type="number" class="form-control" id="qMCQ"  value="5" min="0" max="30" oninput="updateTotal()">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:0.8rem;">📝 SAQ — 1 Mark</label>
+              <input type="number" class="form-control" id="qSAQ1" value="0" min="0" max="20" oninput="updateTotal()">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:0.8rem;">📝 SAQ — 2 Marks</label>
+              <input type="number" class="form-control" id="qSAQ2" value="0" min="0" max="20" oninput="updateTotal()">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:0.8rem;">📋 LAQ — 5 Marks</label>
+              <input type="number" class="form-control" id="qLAQ5" value="0" min="0" max="10" oninput="updateTotal()">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:0.8rem;">📋 LAQ — 10 Marks</label>
+              <input type="number" class="form-control" id="qLAQ10" value="0" min="0" max="10" oninput="updateTotal()">
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary mt-3" id="genBtn" onclick="generateQuestions()" style="width:100%;">
+          <span id="genText">🤖 Generate Questions</span>
+          <span id="genSpinner" class="spinner hidden"></span>
+        </button>
+        <div id="genMsg" class="mt-2"></div>
+      </div>
 
       <div id="previewPanel" style="display:none;">
         <div class="flex justify-between items-center mb-2">
           <h3>Preview (<span id="previewCount">0</span> Questions)</h3>
           <button class="btn btn-success btn-sm" onclick="saveToBank()">💾 Save to Bank</button>
         </div>
-        <div id="previewList" style="max-height:560px;overflow-y:auto;"></div>
+        <div id="previewList" style="max-height:600px;overflow-y:auto;"></div>
       </div>
     </div>
   </div>
+
 
   <!-- ── Tab: Question Bank ── -->
   <div id="tab-bank" class="tab-panel">
@@ -213,6 +215,18 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- Teacher Grade Override Modal -->
+<div id="gradeModal" class="modal-overlay hidden" style="z-index:1100;">
+  <div class="modal-box" style="max-width:720px;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3>📋 Student Answers — <span id="gradeModalStudent"></span></h3>
+      <button class="btn btn-secondary btn-sm" onclick="closeGradeModal()">✕</button>
+    </div>
+    <div id="gradeModalBody"></div>
+  </div>
+</div>
+
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>
 <!-- QR code library -->

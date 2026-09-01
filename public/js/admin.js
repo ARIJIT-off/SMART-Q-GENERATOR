@@ -28,9 +28,9 @@ function switchTab(name) {
 
 // ── UPLOAD & GENERATE ───────────────────────────────────────────────────
 const uploadZone = document.getElementById('uploadZone');
-const pdfFile = document.getElementById('pdfFile');
+const pdfFile    = document.getElementById('pdfFile');
 
-uploadZone.addEventListener('click', (e) => { if (e.target !== pdfFile) pdfFile.click(); });
+uploadZone.addEventListener('click', () => pdfFile.click());
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
 uploadZone.addEventListener('drop', e => {
@@ -44,41 +44,43 @@ pdfFile.addEventListener('change', () => {
   if (pdfFile.files[0]) document.getElementById('fileName').textContent = '📄 ' + pdfFile.files[0].name;
 });
 
-// PYQ Upload listeners
-pyqZone.addEventListener('click', (e) => { if (e.target !== pyqFile) pyqFile.click(); });
-pyqZone.addEventListener('dragover', e => { e.preventDefault(); pyqZone.classList.add('dragover'); });
-pyqZone.addEventListener('dragleave', () => pyqZone.classList.remove('dragover'));
-pyqZone.addEventListener('drop', e => {
-  e.preventDefault(); pyqZone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) {
-    pyqFile.files = e.dataTransfer.files;
-    document.getElementById('pyqFileName').textContent = '📝 ' + e.dataTransfer.files[0].name;
-  }
-});
-pyqFile.addEventListener('change', () => {
-  if (pyqFile.files[0]) document.getElementById('pyqFileName').textContent = '📝 ' + pyqFile.files[0].name;
-});
+function onPyqSelected() {
+  const f = document.getElementById('pyqFile').files[0];
+  document.getElementById('pyqFileName').textContent = f ? '📜 ' + f.name : 'optional — helps AI frame better questions';
+}
 
-async function generateMCQs() {
-  if (!pdfFile.files[0]) { showMsg('genMsg', 'Please select a PDF file.', 'error'); return; }
-  const numQ = parseInt(document.getElementById('numQ').value) || 20;
+function updateTotal() {
+  const total = ['qMCQ','qSAQ1','qSAQ2','qLAQ5','qLAQ10']
+    .reduce((s, id) => s + (parseInt(document.getElementById(id)?.value) || 0), 0);
+  document.getElementById('totalQCount').textContent = total;
+}
+
+async function generateQuestions() {
+  if (!pdfFile.files[0]) { showMsg('genMsg', 'Please select a syllabus PDF.', 'error'); return; }
+
+  const counts = {
+    mcq:  parseInt(document.getElementById('qMCQ').value)  || 0,
+    saq1: parseInt(document.getElementById('qSAQ1').value) || 0,
+    saq2: parseInt(document.getElementById('qSAQ2').value) || 0,
+    laq5: parseInt(document.getElementById('qLAQ5').value) || 0,
+    laq10:parseInt(document.getElementById('qLAQ10').value)|| 0,
+  };
+  const total = Object.values(counts).reduce((a,b) => a+b, 0);
+  if (total === 0) { showMsg('genMsg', 'Add at least 1 question.', 'error'); return; }
 
   const btn = document.getElementById('genBtn');
   btn.disabled = true;
-  document.getElementById('genText').textContent = 'Generating...';
+  document.getElementById('genText').textContent = 'Generating…';
   document.getElementById('genSpinner').classList.remove('hidden');
-  document.getElementById('genMsg').innerHTML = '<div class="alert alert-info">🤖 Parsing PDF and generating MCQs via AI… This may take 20–40 seconds.</div>';
+  document.getElementById('genMsg').innerHTML = `<div class="alert alert-info">🤖 Generating ${total} questions via AI… This may take 20–60 seconds.</div>`;
 
   try {
     const fd = new FormData();
     fd.append('syllabus', pdfFile.files[0]);
-    if (pyqFile.files[0]) fd.append('pyq', pyqFile.files[0]);
+    fd.append('questionCounts', JSON.stringify(counts));
+    const pyqF = document.getElementById('pyqFile').files[0];
+    if (pyqF) fd.append('pyq', pyqF);
 
-    fd.append('mcq', document.getElementById('q_mcq').value || 0);
-    fd.append('saq1', document.getElementById('q_saq1').value || 0);
-    fd.append('saq2', document.getElementById('q_saq2').value || 0);
-    fd.append('laq5', document.getElementById('q_laq5').value || 0);
-    fd.append('laq10', document.getElementById('q_laq10').value || 0);
     const data = await apiUpload('/admin/upload-syllabus', fd);
     generatedQuestions = data.questions;
     renderPreview(generatedQuestions);
@@ -92,6 +94,16 @@ async function generateMCQs() {
   }
 }
 
+// keep old alias for legacy calls
+const generateMCQs = generateQuestions;
+
+function qTypeBadge(type, marks) {
+  if (type === 'mcq')  return `<span class="badge badge-info">MCQ</span>`;
+  if (type === 'saq')  return `<span class="badge badge-warning">SAQ ${marks}M</span>`;
+  if (type === 'laq')  return `<span class="badge badge-danger">LAQ ${marks}M</span>`;
+  return `<span class="badge badge-info">${type}</span>`;
+}
+
 function renderPreview(questions) {
   const panel = document.getElementById('previewPanel');
   const list  = document.getElementById('previewList');
@@ -100,14 +112,21 @@ function renderPreview(questions) {
   const letters = ['A','B','C','D'];
   list.innerHTML = questions.map((q, i) => `
     <div class="question-card">
-      <div class="question-num">Q${i+1} · <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span> · ${q.topic}</div>
+      <div class="question-num">
+        Q${i+1} · ${qTypeBadge(q.type, q.marks)} · <span class="badge badge-${diffBadge(q.difficulty)}">${q.difficulty}</span> · <span class="tag">${q.topic}</span>
+      </div>
       <div class="question-text">${q.text}</div>
-      <ul class="options-list">
-        ${q.options.map((o, oi) => `
-          <li class="option-item ${oi === q.answerIndex ? 'correct' : ''}">
-            <span class="option-letter">${letters[oi]}</span>${o}
-          </li>`).join('')}
-      </ul>
+      ${q.type === 'mcq' ? `
+        <ul class="options-list">
+          ${(q.options||[]).map((o, oi) => `
+            <li class="option-item ${oi === q.answerIndex ? 'correct' : ''}">
+              <span class="option-letter">${letters[oi]}</span>${o}
+            </li>`).join('')}
+        </ul>` : `
+        <div style="margin-top:8px;padding:10px;background:var(--surface-light);border-radius:6px;border-left:3px solid var(--primary);">
+          <div style="font-size:0.75rem;color:var(--dim);margin-bottom:4px;">Model Answer</div>
+          <div style="font-size:0.85rem;color:var(--text);">${q.modelAnswer || '—'}</div>
+        </div>`}
     </div>`).join('');
 }
 
@@ -127,6 +146,7 @@ async function saveToBank() {
     showToast(err.message, 'error');
   }
 }
+
 
 // ── QUESTION BANK ────────────────────────────────────────────────────────
 function groupQuestions(questions) {
@@ -417,6 +437,10 @@ async function loadResults() {
     if (!submissions.length) {
       panel.innerHTML = '<div class="alert alert-info">No submissions yet for this exam.</div>'; return;
     }
+    const hasNonMcq = submissions.some(s =>
+      s.enrichedAnswers?.some(a => a.questionType !== 'mcq')
+    );
+
     panel.innerHTML = `
       <div class="stats-grid mb-3" style="margin-top:16px;">
         <div class="stat-card"><div class="stat-value">${submissions.length}</div><div class="stat-label">Total Submissions</div></div>
@@ -426,26 +450,26 @@ async function loadResults() {
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Student</th><th>Location</th><th>Score</th><th>Correct</th><th>Wrong</th>
-            <th>Attended</th><th>Avg Time/Q</th><th>Total Time</th><th>Cheating</th><th>Auto-Submit</th>
+            <th>Student</th><th>Location</th><th>Score</th><th>MCQ Correct</th><th>Wrong</th>
+            <th>Attended</th><th>Total Time</th><th>Cheating</th>
+            ${hasNonMcq ? '<th>Grade Review</th>' : ''}
           </tr></thead>
           <tbody>
             ${submissions.map(s => {
-              const avgTime = s.answers?.length ? Math.round((s.totalTimeSec || 0) / s.answers.length) : 0;
-              return `<tr class="result-row" onclick="viewSubmission('${examId}', '${s._id}')" style="cursor:pointer;">
+              return `<tr class="result-row">
                 <td>
                   <div>${s.studentName || 'Student'}</div>
                   <div class="text-sm" style="color:var(--dim);">${s.studentEmail}</div>
+                  ${s.gradingPending ? '<span class="badge badge-warning">AI Grading Pending</span>' : ''}
                 </td>
                 <td class="text-sm">${s.location?.city || '—'}<br><span style="color:var(--dim);font-size:.73rem;">${s.location?.country || ''}</span></td>
                 <td><b style="color:var(--primary);">${s.score}</b>/${s.maxScore || '?'}</td>
                 <td style="color:var(--success);">${s.correct}</td>
                 <td style="color:var(--danger);">${s.wrong}</td>
                 <td>${s.attended}/${s.answers?.length || 0}</td>
-                <td>${avgTime}s</td>
                 <td>${fmtDuration(s.totalTimeSec || 0)}</td>
                 <td>${s.cheatingAttempted ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">No</span>'}</td>
-                <td>${s.autoSubmitted ? '<span class="badge badge-warning">Yes</span>' : '—'}</td>
+                ${hasNonMcq ? `<td><button class="btn btn-secondary btn-sm" onclick='openGradeModal(${JSON.stringify(s)})'>✏️ Review & Grade</button></td>` : ''}
               </tr>`;
             }).join('')}
           </tbody>
@@ -456,90 +480,84 @@ async function loadResults() {
   }
 }
 
-function showMsg(id, text, type = 'error') {
-  document.getElementById(id).innerHTML = `<div class="alert alert-${type}">${text}</div>`;
-}
+// ── Teacher Grade Override Modal ──────────────────────────────────────────
+let currentGradingSubmission = null;
 
+function openGradeModal(submission) {
+  currentGradingSubmission = submission;
+  document.getElementById('gradeModalStudent').textContent = submission.studentName || submission.studentEmail;
+  const body = document.getElementById('gradeModalBody');
+  const nonMcq = (submission.enrichedAnswers || []).filter(a => a.questionType !== 'mcq');
 
-async function viewSubmission(examId, subId) {
-  let modal = document.getElementById('gradingModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'gradingModal';
-    modal.className = 'modal hidden';
-    modal.innerHTML = `
-      <div class="modal-content" style="max-width: 800px; width:90%; padding:24px; border-radius:12px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-          <h3>Review & Grade Submission</h3>
-          <button class="btn btn-sm" onclick="document.getElementById('gradingModal').classList.add('hidden')">Close</button>
-        </div>
-        <div id="gradingContent" style="max-height: 60vh; overflow-y: auto;">Loading...</div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  }
-  
-  modal.classList.remove('hidden');
-  document.getElementById('gradingContent').innerHTML = '<p>Loading submission details...</p>';
-  
-  try {
-    const data = await apiFetch(`/student/result/${subId}`);
-    if (!data.enrichedAnswers) throw new Error('Could not load answers');
-    
-    let html = '';
-    data.enrichedAnswers.forEach((a, idx) => {
-      if (a.type === 'MCQ' || !a.type) {
-        html += `
-          <div style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
-            <p><strong>Q${idx+1}: ${a.questionText}</strong> <span class="badge badge-info">MCQ</span></p>
-            <p style="color:${a.isCorrect ? 'var(--success)' : 'var(--danger)'}">Selected: ${a.options[a.selectedIndex] || 'Not answered'}</p>
+  if (!nonMcq.length) {
+    body.innerHTML = '<p style="color:var(--dim)">No SAQ/LAQ answers to review for this student.</p>';
+  } else {
+    body.innerHTML = nonMcq.map(a => {
+      const finalScore = a.teacherScore != null ? a.teacherScore : (a.aiScore ?? '—');
+      const badge = a.questionType === 'saq' ? `badge-warning` : `badge-danger`;
+      return `
+        <div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+            <span class="badge ${badge}">${a.questionType.toUpperCase()} — ${a.marks}M</span>
+            <span class="tag">${a.questionText}</span>
           </div>
-        `;
-      } else {
-        html += `
-          <div style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
-            <p><strong>Q${idx+1}: ${a.questionText}</strong> <span class="badge badge-warning">${a.type} (${a.marks}m)</span></p>
-            <div style="background:var(--surface); padding:8px; margin:8px 0; border-radius:4px;">
-              <small style="color:var(--dim)">Student Answer:</small><br>
-              ${a.textAnswer || '<em>No answer provided</em>'}
+
+          <div style="margin:10px 0;padding:10px;background:var(--surface-light);border-radius:6px;">
+            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px;">Student's Answer</div>
+            <div style="font-size:0.88rem;">${a.textAnswer || '<i style="color:var(--dim)">Not attempted</i>'}</div>
+          </div>
+
+          ${a.modelAnswer ? `<div style="margin:10px 0;padding:10px;background:var(--surface-light);border-radius:6px;border-left:3px solid var(--primary);">
+            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px;">Model Answer</div>
+            <div style="font-size:0.85rem;">${a.modelAnswer}</div>
+          </div>` : ''}
+
+          <div style="display:flex;gap:12px;align-items:flex-start;margin-top:12px;">
+            <div>
+              <div style="font-size:0.72rem;color:var(--dim);">AI Score</div>
+              <b style="color:var(--primary);">${a.aiScore != null ? a.aiScore : '—'} / ${a.marks}</b>
+              ${a.aiFeedback ? `<div style="font-size:0.75rem;color:var(--dim);margin-top:4px;max-width:300px;">${a.aiFeedback}</div>` : ''}
             </div>
-            <div style="background:var(--success-light); padding:8px; margin:8px 0; border-radius:4px; font-size:0.85rem;">
-              <small>Ideal Answer:</small><br>
-              ${a.idealAnswer || 'N/A'}
-            </div>
-            <div style="display:flex; gap:16px; align-items:center; margin-top:8px;">
-              <div>
-                <small style="color:var(--dim)">AI Score / Feedback:</small><br>
-                <strong>${a.aiScore !== undefined ? a.aiScore : '?'} / ${a.marks}</strong> - <em>${a.aiFeedback || ''}</em>
-              </div>
-              <div style="flex:1;"></div>
-              <div>
-                <label style="font-size:0.85rem; font-weight:600;">Override Score:</label>
-                <input type="number" id="override-${a.questionId}" value="${a.teacherScore !== undefined ? a.teacherScore : a.aiScore}" step="0.5" min="0" max="${a.marks}" style="width:70px; padding:4px; border:1px solid var(--border); border-radius:4px;">
-                <button class="btn btn-sm btn-primary" onclick="overrideScore('${examId}', '${subId}', '${a.questionId}')">Save</button>
+            <div style="flex:1;">
+              <label style="font-size:0.72rem;color:var(--dim);">Override Score (0 – ${a.marks})</label>
+              <div style="display:flex;gap:8px;margin-top:4px;">
+                <input type="number" id="os-${a.questionId}" min="0" max="${a.marks}" step="0.5"
+                  value="${a.teacherScore != null ? a.teacherScore : (a.aiScore ?? '')}"
+                  style="width:80px;" class="form-control">
+                <input type="text" id="on-${a.questionId}" placeholder="Note (optional)" class="form-control" style="flex:1;" value="${a.teacherNote||''}">
+                <button class="btn btn-success btn-sm" onclick="submitGradeOverride('${submission._id}','${a.questionId}',${a.marks})">Save</button>
               </div>
             </div>
           </div>
-        `;
-      }
-    });
-    
-    document.getElementById('gradingContent').innerHTML = html;
-  } catch (err) {
-    document.getElementById('gradingContent').innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+        </div>`;
+    }).join('');
   }
+  document.getElementById('gradeModal').classList.remove('hidden');
 }
 
-async function overrideScore(examId, subId, questionId) {
-  const newScore = document.getElementById(`override-${questionId}`).value;
+function closeGradeModal() {
+  document.getElementById('gradeModal').classList.add('hidden');
+  currentGradingSubmission = null;
+}
+
+async function submitGradeOverride(submissionId, questionId, maxMarks) {
+  const scoreEl = document.getElementById(`os-${questionId}`);
+  const noteEl  = document.getElementById(`on-${questionId}`);
+  const score   = parseFloat(scoreEl.value);
+  if (isNaN(score) || score < 0 || score > maxMarks) {
+    showToast(`Score must be 0–${maxMarks}`, 'error'); return;
+  }
   try {
-    await apiFetch(`/admin/exams/${examId}/submissions/${subId}/override`, {
+    const res = await apiFetch(`/admin/submissions/${submissionId}/grade-answer`, {
       method: 'PATCH',
-      body: JSON.stringify({ questionId, newScore })
+      body: JSON.stringify({ questionId, score, note: noteEl.value })
     });
-    showToast('Score overridden successfully!', 'success');
-    loadResults(); // refresh background table
+    showToast(`✅ Score saved. New total: ${res.newTotalScore}`, 'success');
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+function showMsg(id, text, type = 'error') {
+  document.getElementById(id).innerHTML = `<div class="alert alert-${type}">${text}</div>`;
 }
