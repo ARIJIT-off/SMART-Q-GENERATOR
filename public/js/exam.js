@@ -235,46 +235,82 @@ function renderQuestion(idx) {
   const letters = ['A','B','C','D'];
   const qType = (q.type || 'mcq').toLowerCase();
   const marks = q.marks || examData.marksPerQuestion || 1;
+  const isMcq = qType === 'mcq';
 
-  // Type badge label
-  let typeBadge = '✅ MCQ';
-  if (qType === 'saq') typeBadge = `📝 SAQ — ${marks} Mark${marks > 1 ? 's' : ''}`;
-  if (qType === 'laq') typeBadge = `📋 LAQ — ${marks} Marks`;
+  // Type badge
+  let typeBadge = '<span style="background:rgba(79,70,229,.25);color:#818cf8;padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">✅ MCQ</span>';
+  if (qType === 'saq') typeBadge = `<span style="background:rgba(245,158,11,.2);color:#fbbf24;padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">📝 SAQ — ${marks} Mark${marks > 1 ? 's' : ''}</span>`;
+  if (qType === 'laq') typeBadge = `<span style="background:rgba(239,68,68,.2);color:#f87171;padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">📋 LAQ — ${marks} Marks</span>`;
 
-  document.getElementById('qNum').textContent = `Question ${idx + 1} of ${questions.length} · ${typeBadge}`;
+  document.getElementById('qNum').innerHTML = `Question ${idx + 1} of ${questions.length} &nbsp;·&nbsp; ${typeBadge}`;
   document.getElementById('qText').textContent = q.text;
   document.getElementById('qProgress').textContent =
     `${answers.filter(a => a.selectedIndex !== -1 || (a.textAnswer||'').trim().length > 0).length}/${questions.length} answered`;
 
-  const optionsContainer = document.getElementById('optionsList');
-  if (qType === 'mcq') {
-    optionsContainer.innerHTML = (q.options||[]).map((o, oi) => `
-      <li class="option-item ${oi === ans.selectedIndex ? 'selected' : ''}" onclick="selectOption(${oi})">
-        <span class="option-letter">${letters[oi]}</span>${o}
-      </li>`).join('');
-  } else {
-    // SAQ: 4 rows, LAQ: 10 rows
-    const rows = qType === 'saq' ? 4 : 10;
-    const hint = qType === 'saq'
-      ? 'Write a concise answer (2–6 sentences).'
-      : 'Write a detailed answer with full explanation.';
-    const wordCount = (ans.textAnswer||'').trim().split(/\s+/).filter(Boolean).length;
-    optionsContainer.innerHTML = `
-      <div style="margin-bottom:6px;font-size:0.78rem;color:var(--dim);">${hint}</div>
-      <textarea id="ansTextarea"
-        placeholder="Type your answer here…"
-        oninput="updateTextAnswer(this.value)"
-        rows="${rows}"
-        style="width:100%;padding:14px;border:1px solid var(--border);border-radius:8px;
-               background:var(--surface);color:var(--text);font-family:inherit;
-               font-size:1rem;resize:vertical;line-height:1.6;"
-      >${ans.textAnswer || ''}</textarea>
-      <div id="wordCountEl" style="text-align:right;font-size:0.75rem;color:var(--dim);margin-top:4px;">${wordCount} words</div>`;
+  // Show/hide Clear Answer button (only relevant for MCQ)
+  const clearBtn = document.getElementById('clearBtn');
+  if (clearBtn) clearBtn.style.display = isMcq ? '' : 'none';
 
-    // Live word count update
-    document.getElementById('ansTextarea').addEventListener('input', function() {
-      const wc = this.value.trim().split(/\s+/).filter(Boolean).length;
-      document.getElementById('wordCountEl').textContent = wc + ' words';
+  const container = document.getElementById('optionsList');
+
+  if (isMcq) {
+    // MCQ: render as clickable option divs
+    container.innerHTML = (q.options||[]).map((o, oi) => `
+      <div class="option-item ${oi === ans.selectedIndex ? 'selected' : ''}" onclick="selectOption(${oi})" style="cursor:pointer;">
+        <span class="option-letter">${letters[oi]}</span>${o}
+      </div>`).join('');
+  } else {
+    // SAQ / LAQ: textarea answer box
+    const rows = qType === 'saq' ? 5 : 12;
+    const minH = qType === 'saq' ? '120px' : '260px';
+    const hint = qType === 'saq'
+      ? '✍️ Short Answer — write 2–6 clear sentences.'
+      : '✍️ Long Answer — write detailed paragraphs with examples.';
+    const wordCount = (ans.textAnswer||'').trim().split(/\s+/).filter(Boolean).length;
+
+    container.innerHTML = `
+      <div style="margin-bottom:10px;padding:10px 14px;background:rgba(79,70,229,.1);border-left:3px solid var(--primary);border-radius:6px;font-size:0.82rem;color:var(--dim);">
+        ${hint}
+      </div>
+      <textarea id="ansTextarea"
+        placeholder="Start writing your answer here…"
+        rows="${rows}"
+        style="
+          width:100%;
+          min-height:${minH};
+          padding:16px;
+          border:2px solid var(--border);
+          border-radius:10px;
+          background:var(--surface);
+          color:var(--text);
+          font-family:inherit;
+          font-size:1rem;
+          line-height:1.7;
+          resize:vertical;
+          outline:none;
+          transition: border-color .2s;
+          box-sizing:border-box;
+        "
+        onfocus="this.style.borderColor='var(--primary)'"
+        onblur="this.style.borderColor='var(--border)'"
+        oninput="updateTextAnswer(this.value)"
+      >${ans.textAnswer || ''}</textarea>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.75rem;color:var(--dim);">
+        <span>Max marks: <b style="color:var(--primary);">${marks}</b> — AI will grade your answer</span>
+        <span id="wordCountEl">${wordCount} words</span>
+      </div>`;
+
+    // Wire live word counter
+    requestAnimationFrame(() => {
+      const ta = document.getElementById('ansTextarea');
+      if (ta) {
+        ta.addEventListener('input', function() {
+          const wc = this.value.trim().split(/\s+/).filter(Boolean).length;
+          const el = document.getElementById('wordCountEl');
+          if (el) el.textContent = wc + ' words';
+        });
+        ta.focus();
+      }
     });
   }
 
@@ -289,16 +325,24 @@ function renderQuestion(idx) {
   });
 }
 
-
 function selectOption(optionIdx) {
   answers[currentIdx].selectedIndex = optionIdx;
   renderQuestion(currentIdx);
 }
 
 function clearAnswer() {
-  answers[currentIdx].selectedIndex = -1;
+  const q = questions[currentIdx];
+  const qType = (q.type || 'mcq').toLowerCase();
+  if (qType === 'mcq') {
+    answers[currentIdx].selectedIndex = -1;
+  } else {
+    answers[currentIdx].textAnswer = '';
+    const ta = document.getElementById('ansTextarea');
+    if (ta) ta.value = '';
+  }
   renderQuestion(currentIdx);
 }
+
 
 function navigate(dir) {
   saveCurrentQTime();
