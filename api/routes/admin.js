@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const { protect } = require('../middleware/authMiddleware');
 const { requireRole } = require('../middleware/roleMiddleware');
-const { generateMCQsFromPDF } = require('../services/mcqService');
+const { generateQuestionsFromPDF } = require('../services/mcqService');
 const { sendExamLinkEmail } = require('../services/emailService');
 const Question = require('../models/Question');
 const Exam = require('../models/Exam');
@@ -19,17 +19,31 @@ const upload = multer({
 });
 
 // POST /api/admin/upload-syllabus
-router.post('/upload-syllabus', protect, requireRole('admin'), upload.single('syllabus'), async (req, res) => {
+router.post('/upload-syllabus', protect, requireRole('admin'), upload.fields([{ name: 'syllabus', maxCount: 1 }, { name: 'pyq', maxCount: 1 }]), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: 'No PDF file uploaded' });
-    const numQuestions = Math.min(50, Math.max(5, parseInt(req.body.numQuestions) || 20));
-    const generated = await generateMCQsFromPDF(req.file.buffer, numQuestions);
-    const pdfName = req.file.originalname;
-    const batchId = Date.now().toString(); // simple batch id
+    if (!req.files || !req.files.syllabus) return res.status(400).json({ message: 'Syllabus PDF is required' });
+    
+    const breakdown = {
+      mcq: parseInt(req.body.mcq) || 0,
+      saq1: parseInt(req.body.saq1) || 0,
+      saq2: parseInt(req.body.saq2) || 0,
+      laq5: parseInt(req.body.laq5) || 0,
+      laq10: parseInt(req.body.laq10) || 0
+    };
+    
+    // Default fallback if nothing specified
+    if (Object.values(breakdown).reduce((a,b)=>a+b, 0) === 0) breakdown.mcq = 20;
+
+    const pyqBuffer = req.files.pyq ? req.files.pyq[0].buffer : null;
+    const generated = await generateQuestionsFromPDF(req.files.syllabus[0].buffer, pyqBuffer, breakdown);
+    
+    const pdfName = req.files.syllabus[0].originalname;
+    const batchId = Date.now().toString();
     const questions = generated.map(q => ({ ...q, pdfName, batchId }));
+    
     res.json({ questions, count: questions.length });
   } catch (err) {
-    console.error('MCQ gen error:', err.message);
+    console.error('Question gen error:', err.message);
     res.status(500).json({ message: err.message });
   }
 });
@@ -171,6 +185,45 @@ router.get('/exams/:id/results', protect, requireRole('admin'), async (req, res)
       .sort({ submittedAt: -1 });
 
     res.json({ exam, submissions });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PATCH /api/admin/exams/:examId/submissions/:subId/override
+router.patch('/exams/:examId/submissions/:subId/override', protect, requireRole('admin'), async (req, res) => {
+  try {
+    const { questionId, newScore } = req.body;
+    const submission = await Submission.findOne({ _id: req.params.subId, examId: req.params.examId });
+    if (!submission) return res.status(404).json({ message: 'Submission not found' });
+
+    const ansIndex = submission.answers.findIndex(a => a.questionId.toString() === questionId);
+    if (ansIndex === -1) return res.status(404).json({ message: 'Answer not found in submission' });
+
+    submission.answers[ansIndex].teacherScore = Number(newScore);
+    
+    // Recalculate total score
+    const exam = await Exam.findById(req.params.examId).populate('questions');
+    let newTotalScore = 0;
+    
+    submission.answers.forEach(a => {
+      const q = exam.questions.find(q => q._id.toString() === a.questionId.toString());
+      if (!q) return;
+      if (q.type === 'MCQ' || !q.type) {
+        if (a.selectedIndex !== -1 && a.selectedIndex === q.answerIndex) {
+          newTotalScore += (q.marks || exam.marksPerQuestion);
+        } else if (a.selectedIndex !== -1) {
+          newTotalScore -= (exam.negativeMarking || 0);
+        }
+      } else {
+        newTotalScore += (a.teacherScore !== undefined ? a.teacherScore : (a.aiScore || 0));
+      }
+    });
+    
+    submission.score = Math.max(0, parseFloat(newTotalScore.toFixed(2)));
+    await submission.save();
+
+    res.json({ message: 'Score updated', submission });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

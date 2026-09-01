@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 const answerSchema = new mongoose.Schema({
   questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
-  selectedIndex: { type: Number, default: -1 },  // -1 = not attempted
+  selectedIndex: { type: Number, default: -1 },  // -1 = not attempted (for MCQ)
+  textAnswer: { type: String, default: '' },     // For SAQ/LAQ
+  aiScore: { type: Number },                     // Assigned by AI for SAQ/LAQ
+  teacherScore: { type: Number },                // Override by teacher
+  aiFeedback: { type: String, default: '' },     // Explanation of marking
   timeTakenSec: { type: Number, default: 0 }
 }, { _id: false });
 

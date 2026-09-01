@@ -35,7 +35,7 @@ async function loadExam() {
     questions = data.exam.questions;
     timeLeftSec = data.exam.duration * 60;
 
-    answers = questions.map(q => ({ questionId: q._id, selectedIndex: -1, timeTakenSec: 0 }));
+    answers = questions.map(q => ({ questionId: q._id, selectedIndex: -1, textAnswer: '', timeTakenSec: 0 }));
 
     document.getElementById('examTitleSetup').textContent = examData.title;
     document.getElementById('examMeta').textContent =
@@ -234,23 +234,28 @@ function renderQuestion(idx) {
   const ans = answers[idx];
   const letters = ['A','B','C','D'];
 
-  document.getElementById('qNum').textContent = `Question ${idx + 1} of ${questions.length}`;
+  document.getElementById('qNum').textContent = `Question ${idx + 1} of ${questions.length} • ${q.marks || examData.marksPerQuestion || 1} Marks`;
   document.getElementById('qText').textContent = q.text;
-  document.getElementById('qProgress').textContent = `${answers.filter(a => a.selectedIndex !== -1).length}/${questions.length} answered`;
+  document.getElementById('qProgress').textContent = `${answers.filter(a => a.selectedIndex !== -1 || a.textAnswer.trim().length > 0).length}/${questions.length} answered`;
 
-  document.getElementById('optionsList').innerHTML = q.options.map((o, oi) => `
-    <li class="option-item ${oi === ans.selectedIndex ? 'selected' : ''}" onclick="selectOption(${oi})">
-      <span class="option-letter">${letters[oi]}</span>${o}
-    </li>`).join('');
+  const optionsContainer = document.getElementById('optionsList');
+  if (q.type === 'MCQ' || !q.type) {
+    optionsContainer.innerHTML = q.options.map((o, oi) => `
+      <li class="option-item ${oi === ans.selectedIndex ? 'selected' : ''}" onclick="selectOption(${oi})">
+        <span class="option-letter">${letters[oi]}</span>${o}
+      </li>`).join('');
+  } else {
+    optionsContainer.innerHTML = `<textarea id="saqTextarea" placeholder="Type your answer here..." oninput="updateTextAnswer(this.value)" style="width: 100%; min-height: 150px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 1rem; resize: vertical;">${ans.textAnswer || ''}</textarea>`;
+  }
 
   document.getElementById('prevBtn').disabled = idx === 0;
   document.getElementById('nextBtn').disabled = idx === questions.length - 1;
 
   // Update nav grid
   document.querySelectorAll('.q-nav-btn').forEach((b, i) => {
-    b.classList.remove('current', 'answered');
-    if (i === idx) b.classList.add('current');
-    else if (answers[i].selectedIndex !== -1) b.classList.add('answered');
+    b.classList.toggle('active', i === idx);
+    const isAns = answers[i].selectedIndex !== -1 || answers[i].textAnswer.trim().length > 0;
+    b.classList.toggle('answered', isAns);
   });
 }
 
@@ -282,7 +287,7 @@ function saveCurrentQTime() {
 
 // ── Submit ────────────────────────────────────────────────────────────────
 function confirmSubmit() {
-  const answered = answers.filter(a => a.selectedIndex !== -1).length;
+  const answered = answers.filter(a => a.selectedIndex !== -1 || a.textAnswer.trim().length > 0).length;
   const notAnswered = answers.length - answered;
   document.getElementById('submitSummary').innerHTML =
     `<b>${answered}</b> answered, <b style="color:var(--warning)">${notAnswered}</b> unanswered out of ${answers.length} questions.<br>Once submitted, you cannot change your answers.`;
