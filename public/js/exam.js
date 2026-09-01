@@ -409,7 +409,7 @@ function saveCurrentQTime() {
 
 // ── Submit ────────────────────────────────────────────────────────────────
 function confirmSubmit() {
-  const answered = answers.filter(a => a.selectedIndex !== -1 || a.textAnswer.trim().length > 0).length;
+  const answered = answers.filter(a => a.selectedIndex !== -1 || (a.textAnswer||'').trim().length > 0).length;
   const notAnswered = answers.length - answered;
   document.getElementById('submitSummary').innerHTML =
     `<b>${answered}</b> answered, <b style="color:var(--warning)">${notAnswered}</b> unanswered out of ${answers.length} questions.<br>Once submitted, you cannot change your answers.`;
