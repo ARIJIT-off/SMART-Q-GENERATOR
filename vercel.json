@@ -1,31 +1,12 @@
 {
-  "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/index.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.js"
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
     },
     {
-      "src": "/exam/(.*)",
-      "dest": "/public/exam.html"
-    },
-    {
-      "src": "/(.*\\.(css|js|png|jpg|svg|ico|woff2?))",
-      "dest": "/public/$1"
-    },
-    {
-      "src": "/(login|signup|admin|student|result|index)?",
-      "dest": "/public/$1.html"
-    },
-    {
-      "src": "/",
-      "dest": "/public/index.html"
+      "source": "/exam/(.*)",
+      "destination": "/exam.html"
     }
   ]
 }
