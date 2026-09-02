@@ -43,7 +43,7 @@
         <div class="upload-zone" id="uploadZone">
           <div class="upload-icon">📄</div>
           <p style="color:var(--text);font-weight:600;">Drag &amp; drop Syllabus PDF here</p>
-          <p class="text-sm" style="margin-top:6px;">or click to browse</p>
+          <p class="text-sm" style="margin-top:6px;">or click tbrowse</p>
           <input type="file" id="pdfFile" accept=".pdf" style="display:none">
         </div>
         <p id="fileName" class="text-sm mt-2" style="color:var(--dim);"></p>
@@ -99,7 +99,7 @@
       <div id="previewPanel" style="display:none;">
         <div class="flex justify-between items-center mb-2">
           <h3>Preview (<span id="previewCount">0</span> Questions)</h3>
-          <button class="btn btn-success btn-sm" onclick="saveToBank()">💾 Save to Bank</button>
+          <button class="btn btn-success btn-sm" onclick="saveToBank()">💾 Save tBank</button>
         </div>
         <div id="previewList" style="max-height:600px;overflow-y:auto;"></div>
       </div>
@@ -163,7 +163,7 @@
             <button class="btn btn-secondary btn-sm" onclick="showQR()">📱 Show QR Code</button>
           </div>
           <div style="margin-top:16px;">
-            <p class="text-sm mb-2">Send by email to students:</p>
+            <p class="text-sm mb-2">Send by email tstudents:</p>
             <textarea class="form-control" id="studentEmails" rows="2" placeholder="student1@gmail.com, student2@gmail.com (comma-separated)"></textarea>
             <button class="btn btn-secondary btn-sm mt-2" onclick="sendEmails()">📧 Send Invitations</button>
           </div>
@@ -181,7 +181,7 @@
         <div class="qr-container">
           <canvas id="qrCanvas"></canvas>
         </div>
-        <p class="text-sm mt-2">Students can scan this to access the exam</p>
+        <p class="text-sm mt-2">Students can scan this taccess the exam</p>
       </div>
     </div>
   </div>
@@ -232,5 +232,18 @@
 <!-- QR code library -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="/js/admin.js"></script>
+
+<script>
+document.addEventListener("input", function(e) {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
+        if (e.target.value && e.target.value !== "0" && e.target.value.trim() !== "") {
+            e.target.classList.add("filled-state");
+        } else {
+            e.target.classList.remove("filled-state");
+        }
+    }
+});
+</script>
 </body>
+
 </html>

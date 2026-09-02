@@ -24,7 +24,7 @@
 
     <div id="msg"></div>
 
-    <!-- Step 1: Email + Role -->
+    <!-- Step 1: Email  Role -->
     <div id="step1">
       <h3 style="margin-bottom:6px;">Your Details</h3>
       <p style="margin-bottom:20px;font-size:.85rem;">Enter your Gmail and select your role</p>
@@ -44,7 +44,7 @@
         </div>
       </div>
       <button class="btn btn-primary" id="sendOtpBtn" onclick="sendOtp()">
-        <span id="sendOtpText">Send OTP to Email</span>
+        <span id="sendOtpText">Send OTP tEmail</span>
         <span id="sendOtpSpinner" class="spinner hidden"></span>
       </button>
     </div>
@@ -64,14 +64,14 @@
         <span id="verifyOtpSpinner" class="spinner hidden"></span>
       </button>
       <p class="text-center text-sm mt-2">
-        Didn't receive? <a href="#" onclick="sendOtp(true);return false;">Resend OTP</a>
+        Didn't receive <a href="#" onclick="sendOtp(true);return false;">Resend OTP</a>
       </p>
     </div>
 
     <!-- Step 3: Set PIN -->
     <div id="step3" class="hidden">
       <h3 style="margin-bottom:6px;">Set Your PIN</h3>
-      <p style="margin-bottom:20px;font-size:.85rem;">Choose a 4-digit PIN you'll use to log in</p>
+      <p style="margin-bottom:20px;font-size:.85rem;">Choose a 4-digit PIN you'll use tlog in</p>
       <div class="form-group">
         <label>4-Digit PIN</label>
         <input type="password" class="form-control pin-input" id="pinInput"
@@ -89,7 +89,7 @@
     </div>
 
     <hr class="divider">
-    <p class="text-center text-sm">Already have an account? <a href="/login.html">Sign in</a></p>
+    <p class="text-center text-sm">Already have an account <a href="/login.html">Sign in</a></p>
   </div>
 </div>
 
@@ -107,13 +107,13 @@
 
   function setStep(n) {
     ['step1','step2','step3'].forEach((id, i) => {
-      document.getElementById(id).classList.toggle('hidden', i + 1 !== n);
+      document.getElementById(id).classList.toggle('hidden', i  1 !== n);
     });
     ['dot1','dot2','dot3'].forEach((id, i) => {
       const dot = document.getElementById(id);
       dot.classList.remove('active','done');
-      if (i + 1 < n) dot.classList.add('done');
-      if (i + 1 === n) dot.classList.add('active');
+      if (i  1 < n) dot.classList.add('done');
+      if (i  1 === n) dot.classList.add('active');
     });
   }
 
@@ -144,7 +144,7 @@
       showMsg(err.message);
     } finally {
       btn.disabled = false;
-      document.getElementById('sendOtpText').textContent = 'Send OTP to Email';
+      document.getElementById('sendOtpText').textContent = 'Send OTP tEmail';
       document.getElementById('sendOtpSpinner').classList.add('hidden');
     }
   }
@@ -184,7 +184,7 @@
     const conf  = document.getElementById('pinConfirm').value.trim();
 
     if (!/^\d{4}$/.test(pin)) { showMsg('PIN must be exactly 4 digits.'); return; }
-    if (pin !== conf) { showMsg('PINs do not match.'); return; }
+    if (pin !== conf) { showMsg('PINs dnot match.'); return; }
     clearMsg();
 
     const btn = document.getElementById('setPinBtn');
@@ -198,9 +198,9 @@
         body: JSON.stringify({ email, otp: verifiedOtp, pin })
       });
       setAuth(data.token, data.user);
-      showToast('Account created! Welcome to SMART Q-GEN 🎉', 'success');
+      showToast('Account created! Welcome tSMART Q-GEN 🎉', 'success');
       setTimeout(() => {
-        window.location.href = data.user.role === 'admin' ? '/admin.html' : '/student.html';
+        window.location.href = data.user.role === 'admin'  '/admin.html' : '/student.html';
       }, 800);
     } catch (err) {
       showMsg(err.message);
@@ -210,5 +210,18 @@
     }
   }
 </script>
+
+<script>
+document.addEventListener("input", function(e) {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
+        if (e.target.value && e.target.value !== "0" && e.target.value.trim() !== "") {
+            e.target.classList.add("filled-state");
+        } else {
+            e.target.classList.remove("filled-state");
+        }
+    }
+});
+</script>
 </body>
+
 </html>

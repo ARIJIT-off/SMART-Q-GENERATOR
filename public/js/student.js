@@ -36,9 +36,9 @@ async function openScanner() {
   modal.classList.remove('hidden');
   try {
     scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    const video = document.getElementById('scanVideo');
-    video.srcObject = scanStream;
-    await video.play();
+    const vide= document.getElementById('scanVideo');
+    videsrcObject = scanStream;
+    await videplay();
     scanQRFrame(video);
   } catch (err) {
     showJoinMsg('Camera access denied. Please paste the link manually.', 'error');
@@ -55,8 +55,8 @@ function closeScanner() {
 function scanQRFrame(video) {
   if (!scanStream) return;
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  canvas.width = videvideoWidth;
+  canvas.height = videvideoHeight;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(video, 0, 0);
 
@@ -89,21 +89,21 @@ async function loadHistory() {
     const data = await apiFetch('/student/my-submissions');
     const subs = data.submissions;
     if (!subs.length) {
-      list.innerHTML = '<div class="history-empty"><p style="font-size:2rem;">📝</p><p>No exams taken yet.</p></div>';
+      list.innerHTML = '<div class="history-empty"><p style="font-size:2rem;">📝</p><p>Nexams taken yet.</p></div>';
       return;
     }
-    const pct = (s) => s.maxScore > 0 ? Math.round((s.score / s.maxScore) * 100) : 0;
-    const pctColor = (p) => p >= 70 ? 'var(--success)' : p >= 40 ? 'var(--warning)' : 'var(--danger)';
+    const pct = (s) => s.maxScore > 0  Math.round((s.score / s.maxScore) * 100) : 0;
+    const pctColor = (p) => p >= 70  'var(--success)' : p >= 40  'var(--warning)' : 'var(--danger)';
     list.innerHTML = subs.map(s => {
       const p = pct(s);
       const exam = s.examId;
       return `
         <div class="card card-sm" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
           <div>
-            <h4 style="margin-bottom:4px;">${exam?.title || 'Untitled Exam'}</h4>
-            <p class="text-sm">${new Date(s.submittedAt).toLocaleString()} · ${exam?.duration || '?'} min</p>
-            ${s.cheatingAttempted ? '<span class="badge badge-danger" style="margin-top:4px;">Cheating Flagged</span>' : ''}
-            ${s.autoSubmitted ? '<span class="badge badge-warning" style="margin-top:4px;margin-left:4px;">Auto-Submitted</span>' : ''}
+            <h4 style="margin-bottom:4px;">${exam.title || 'Untitled Exam'}</h4>
+            <p class="text-sm">${new Date(s.submittedAt).toLocaleString()} · ${exam.duration || ''} min</p>
+            ${s.cheatingAttempted  '<span class="badge badge-danger" style="margin-top:4px;">Cheating Flagged</span>' : ''}
+            ${s.autoSubmitted  '<span class="badge badge-warning" style="margin-top:4px;margin-left:4px;">Auto-Submitted</span>' : ''}
           </div>
           <div style="display:flex;align-items:center;gap:20px;">
             <div style="text-align:center;">
@@ -116,7 +116,7 @@ async function loadHistory() {
             <div style="text-align:center;">
               <div style="color:var(--danger);font-weight:700;">${s.wrong}</div><div class="text-sm" style="color:var(--dim);">Wrong</div>
             </div>
-            <a href="/result.html?id=${s._id}" class="btn btn-secondary btn-sm">📊 View Report</a>
+            <a href="/result.htmlid=${s._id}" class="btn btn-secondary btn-sm">📊 View Report</a>
           </div>
         </div>`;
     }).join('');

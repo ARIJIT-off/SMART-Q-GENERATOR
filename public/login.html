@@ -35,7 +35,7 @@
 
     <hr class="divider">
     <p class="text-center text-sm">
-      New here? <a href="/signup.html">Create an account</a>
+      New here <a href="/signup.html">Create an account</a>
     </p>
   </div>
 </div>
@@ -43,10 +43,10 @@
 <div id="toast"></div>
 <script src="/js/api.js"></script>
 <script>
-  // Already logged in?
+  // Already logged in
   if (isLoggedIn()) {
     const u = getUser();
-    window.location.href = u?.role === 'admin' ? '/admin.html' : '/student.html';
+    window.location.href = u.role === 'admin'  '/admin.html' : '/student.html';
   }
 
   const form = document.getElementById('loginForm');
@@ -74,7 +74,7 @@
       setAuth(data.token, data.user);
       showToast('Welcome back!', 'success');
       setTimeout(() => {
-        window.location.href = data.user.role === 'admin' ? '/admin.html' : '/student.html';
+        window.location.href = data.user.role === 'admin'  '/admin.html' : '/student.html';
       }, 500);
     } catch (err) {
       msg.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
@@ -84,5 +84,18 @@
     }
   });
 </script>
+
+<script>
+document.addEventListener("input", function(e) {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
+        if (e.target.value && e.target.value !== "0" && e.target.value.trim() !== "") {
+            e.target.classList.add("filled-state");
+        } else {
+            e.target.classList.remove("filled-state");
+        }
+    }
+});
+</script>
 </body>
+
 </html>

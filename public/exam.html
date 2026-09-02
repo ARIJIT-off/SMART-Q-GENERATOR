@@ -110,7 +110,7 @@
       <div class="current-question">
         <div class="question-num" id="qNum"></div>
         <div class="question-text" id="qText"></div>
-        <!-- container is a div so both <li> and <textarea> are valid children -->
+        <!-- container is a div sboth <li> and <textarea> are valid children -->
         <div id="optionsList" class="options-list"></div>
         <div style="display:flex;gap:12px;margin-top:24px;align-items:center;">
           <button class="nav-arrow" id="prevBtn" onclick="navigate(-1)">← Prev</button>
@@ -124,15 +124,15 @@
 
 <!-- Camera PIP -->
 <div id="camera-pip" style="display:none;">
-  <video id="camVideo" autoplay playsinline muted></video>
+  <videid="camVideo" autoplay playsinline muted></video>
   <div class="cam-label">🔴 LIVE</div>
 </div>
 
 <!-- Fullscreen Warning -->
 <div class="fullscreen-warn" id="fsWarn">
   <div style="font-size:3rem;">🖥️</div>
-  <h2>Return to Fullscreen</h2>
-  <p>You exited fullscreen. Return to fullscreen or your exam will be auto-submitted.</p>
+  <h2>Return tFullscreen</h2>
+  <p>You exited fullscreen. Return tfullscreen or your exam will be auto-submitted.</p>
   <button onclick="reEnterFullscreen()">Enter Fullscreen</button>
 </div>
 
@@ -161,7 +161,7 @@
 <div id="submitModal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <h3>Submit Exam?</h3>
+      <h3>Submit Exam</h3>
       <button class="btn btn-secondary btn-sm" onclick="document.getElementById('submitModal').classList.add('hidden')">✕</button>
     </div>
     <p id="submitSummary" class="mb-3"></p>
@@ -176,5 +176,18 @@
 <script src="/js/api.js"></script>
 <script src="/js/auth.js"></script>
 <script src="/js/exam.js"></script>
+
+<script>
+document.addEventListener("input", function(e) {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
+        if (e.target.value && e.target.value !== "0" && e.target.value.trim() !== "") {
+            e.target.classList.add("filled-state");
+        } else {
+            e.target.classList.remove("filled-state");
+        }
+    }
+});
+</script>
 </body>
+
 </html>

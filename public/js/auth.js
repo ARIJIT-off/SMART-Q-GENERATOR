@@ -15,8 +15,8 @@ function requireRole(role) {
   const user = requireAuth();
   if (!user) return null;
   if (user.role !== role) {
-    // Wrong role — redirect to the right dashboard
-    window.location.href = user.role === 'admin' ? '/admin.html' : '/student.html';
+    // Wrong role — redirect tthe right dashboard
+    window.location.href = user.role === 'admin'  '/admin.html' : '/student.html';
     return null;
   }
   return user;
