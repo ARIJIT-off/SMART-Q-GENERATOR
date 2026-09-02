@@ -1,28 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>SMART Q-GEN</title>
-  <script>
-    // Redirect based on login state
-    const token = localStorage.getItem('sqg_token');
-    const user = (() => { try { return JSON.parse(localStorage.getItem('sqg_user')); } catch { return null; } })();
-    if (token && user) {
-      window.location.href = user.role === 'admin' ? '/admin.html' : '/student.html';
-    } else {
-      window.location.href = '/login.html';
-    }
-  </script>
+ <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <title>SMART Q-GEN</title>
+ <script>
+ // Redirect based on login state
+ const token = localStorage.getItem('sqg_token');
+ const user = (() => { try { return JSON.parse(localStorage.getItem('sqg_user')); } catch { return null; } })();
+ if (token && user) {
+ window.location.href = user.role === 'admin' ? '/admin.html' : '/student.html';
+ } else {
+ window.location.href = '/login.html';
+ }
+ </script>
 </head>
 <body><script>
 document.addEventListener("input", function(e) {
-    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
-        if (e.target.value && e.target.value !== "0" && e.target.value.trim() !== "") {
-            e.target.classList.add("filled-state");
-        } else {
-            e.target.classList.remove("filled-state");
-        }
-    }
+ if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
+ if (e.target.value && e.target.value !== "0" && e.target.value.trim() !== "") {
+ e.target.classList.add("filled-state");
+ } else {
+ e.target.classList.remove("filled-state");
+ }
+ }
 });
 </script>
 </body>

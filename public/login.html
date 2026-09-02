@@ -1,98 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Login — SMART Q-GEN</title>
-  <link rel="stylesheet" href="/css/style.css">
+ <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <title>Login — SMART Q-GEN</title>
+ <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 <div class="center">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <div class="logo-badge"><span>⚡ SMART Q-GEN</span></div>
-      <p>AI-Powered Proctored Exam Platform</p>
-    </div>
-    <h2 style="margin-bottom:6px;">Welcome back</h2>
-    <p style="margin-bottom:24px;font-size:.88rem;">Sign in with your email &amp; 4-digit PIN</p>
+ <div class="auth-card">
+ <div class="auth-logo">
+ <div class="logo-badge"><span> SMART Q-GEN</span></div>
+ <p>AI-Powered Proctored Exam Platform</p>
+ </div>
+ <h2 style="margin-bottom:6px;">Welcome back</h2>
+ <p style="margin-bottom:24px;font-size:.88rem;">Sign in with your email &amp; 4-digit PIN</p>
 
-    <div id="msg"></div>
+ <div id="msg"></div>
 
-    <form id="loginForm">
-      <div class="form-group">
-        <label>Gmail Address</label>
-        <input type="email" class="form-control" id="email" placeholder="you@gmail.com" required autocomplete="email">
-      </div>
-      <div class="form-group">
-        <label>4-Digit PIN</label>
-        <input type="password" class="form-control pin-input" id="pin"
-          placeholder="••••" maxlength="4" pattern="\d{4}" inputmode="numeric" required autocomplete="current-password">
-      </div>
-      <button type="submit" class="btn btn-primary" id="loginBtn">
-        <span id="loginText">Sign In</span>
-        <span id="loginSpinner" class="spinner hidden"></span>
-      </button>
-    </form>
+ <form id="loginForm">
+ <div class="form-group">
+ <label>Gmail Address</label>
+ <input type="email" class="form-control" id="email" placeholder="you@gmail.com" required autocomplete="email">
+ </div>
+ <div class="form-group">
+ <label>4-Digit PIN</label>
+ <input type="password" class="form-control pin-input" id="pin"
+ placeholder="••••" maxlength="4" pattern="\d{4}" inputmode="numeric" required autocomplete="current-password">
+ </div>
+ <button type="submit" class="btn btn-primary" id="loginBtn">
+ <span id="loginText">Sign In</span>
+ <span id="loginSpinner" class="spinner hidden"></span>
+ </button>
+ </form>
 
-    <hr class="divider">
-    <p class="text-center text-sm">
-      New here? <a href="/signup.html">Create an account</a>
-    </p>
-  </div>
+ <hr class="divider">
+ <p class="text-center text-sm">
+ New here? <a href="/signup.html">Create an account</a>
+ </p>
+ </div>
 </div>
 
 <div id="toast"></div>
 <script src="/js/api.js"></script>
 <script>
-  // Already logged in?
-  if (isLoggedIn()) {
-    const u = getUser();
-    window.location.href = u?.role === 'admin' ? '/admin.html' : '/student.html';
-  }
+ // Already logged in?
+ if (isLoggedIn()) {
+ const u = getUser();
+ window.location.href = u?.role === 'admin' ? '/admin.html' : '/student.html';
+ }
 
-  const form = document.getElementById('loginForm');
-  const msg = document.getElementById('msg');
-  const loginBtn = document.getElementById('loginBtn');
+ const form = document.getElementById('loginForm');
+ const msg = document.getElementById('msg');
+ const loginBtn = document.getElementById('loginBtn');
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    const pin   = document.getElementById('pin').value.trim();
-    if (!/^\d{4}$/.test(pin)) {
-      msg.innerHTML = '<div class="alert alert-error">PIN must be exactly 4 digits.</div>';
-      return;
-    }
-    msg.innerHTML = '';
-    loginBtn.disabled = true;
-    document.getElementById('loginText').textContent = 'Signing in…';
-    document.getElementById('loginSpinner').classList.remove('hidden');
+ form.addEventListener('submit', async (e) => {
+ e.preventDefault();
+ const email = document.getElementById('email').value.trim();
+ const pin = document.getElementById('pin').value.trim();
+ if (!/^\d{4}$/.test(pin)) {
+ msg.innerHTML = '<div class="alert alert-error">PIN must be exactly 4 digits.</div>';
+ return;
+ }
+ msg.innerHTML = '';
+ loginBtn.disabled = true;
+ document.getElementById('loginText').textContent = 'Signing in…';
+ document.getElementById('loginSpinner').classList.remove('hidden');
 
-    try {
-      const data = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, pin })
-      });
-      setAuth(data.token, data.user);
-      showToast('Welcome back!', 'success');
-      setTimeout(() => {
-        window.location.href = data.user.role === 'admin' ? '/admin.html' : '/student.html';
-      }, 500);
-    } catch (err) {
-      msg.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
-      loginBtn.disabled = false;
-      document.getElementById('loginText').textContent = 'Sign In';
-      document.getElementById('loginSpinner').classList.add('hidden');
-    }
-  });
+ try {
+ const data = await apiFetch('/auth/login', {
+ method: 'POST',
+ body: JSON.stringify({ email, pin })
+ });
+ setAuth(data.token, data.user);
+ showToast('Welcome back!', 'success');
+ setTimeout(() => {
+ window.location.href = data.user.role === 'admin' ? '/admin.html' : '/student.html';
+ }, 500);
+ } catch (err) {
+ msg.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+ loginBtn.disabled = false;
+ document.getElementById('loginText').textContent = 'Sign In';
+ document.getElementById('loginSpinner').classList.add('hidden');
+ }
+ });
 </script>
 <script>
 document.addEventListener("input", function(e) {
-    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
-        if (e.target.value && e.target.value !== "0" && e.target.value.trim() !== "") {
-            e.target.classList.add("filled-state");
-        } else {
-            e.target.classList.remove("filled-state");
-        }
-    }
+ if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
+ if (e.target.value && e.target.value !== "0" && e.target.value.trim() !== "") {
+ e.target.classList.add("filled-state");
+ } else {
+ e.target.classList.remove("filled-state");
+ }
+ }
 });
 </script>
 </body>
