@@ -6,7 +6,7 @@
 const _eUser = requireAuth();
 
 // ── Extract access code from URL (/exam/<code>) ───────────────────────────
-const accessCode = window.location.pathname.replace(/^\/exam\//, '').split('/')[0].trim();
+const accessCode = window.location.pathname.replace(/^\/exam\/?/, '').split('/')[0].trim();
 if (!accessCode) {
   alert('Invalid exam link.'); window.location.href = '/student.html';
 }
@@ -39,8 +39,8 @@ async function loadExam() {
 
     document.getElementById('examTitleSetup').textContent = examData.title;
     document.getElementById('examMeta').textContent =
-      `${questions.length} Questions · ${examData.duration} min · ${examData.marksPerQuestion} mark/question` 
-      (examData.negativeMarking > 0  ` · -${examData.negativeMarking} negative` : '');
+      `${questions.length} Questions · ${examData.duration} min · ${examData.marksPerQuestion} mark/question` +
+      (examData.negativeMarking > 0 ? ` · -${examData.negativeMarking} negative` : '');
 
     document.getElementById('startBtn').disabled = false;
   } catch (err) {
@@ -73,10 +73,10 @@ async function requestLocation() {
         locationData.lng = pos.coords.longitude;
         // Try reverse geocode
         try {
-          const r = await fetch(`https://nominatim.openstreetmap.org/reverselat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`);
-          const ge= await r.json();
-          locationData.city = geaddress.city || geaddress.town || geaddress.state || 'Unknown';
-          locationData.country = geaddress.country || 'Unknown';
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`);
+          const geo = await r.json();
+          locationData.city = geo.address?.city || geo.address?.town || geo.address?.state || 'Unknown';
+          locationData.country = geo.address?.country || 'Unknown';
         } catch {}
         el.textContent = 'Granted ✓'; el.className = 'perm-status granted'; locOk = true;
         resolve();
@@ -99,7 +99,7 @@ async function requestCamera() {
 
 // ── Begin Exam ────────────────────────────────────────────────────────────
 async function beginExam() {
-  // Gfullscreen
+  // Go fullscreen
   await requestFullscreen();
   // Show cam PIP
   if (camStream) {
@@ -124,7 +124,7 @@ async function requestFullscreen() {
   const el = document.documentElement;
   const fsEl = document.getElementById('fsStatus');
   try {
-    await (el.requestFullscreen.() || el.webkitRequestFullscreen.() || el.mozRequestFullScreen.());
+    await (el.requestFullscreen?.() || el.webkitRequestFullscreen?.() || el.mozRequestFullScreen?.());
     fsEl.textContent = 'Active ✓'; fsEl.className = 'perm-status granted';
   } catch {
     fsEl.textContent = 'Failed'; fsEl.className = 'perm-status denied';
@@ -178,7 +178,7 @@ function onFullscreenChange() {
     logCheat('fullscreen-exit');
     fsWarningActive = true;
     document.getElementById('fsWarn').style.display = 'flex';
-    // Give 5 seconds tre-enter, then auto-submit
+    // Give 5 seconds to re-enter, then auto-submit
     fsWarningTimeout = setTimeout(() => {
       if (fsWarningActive && !submitted) {
         document.getElementById('fsWarn').style.display = 'none';
@@ -193,7 +193,7 @@ function logCheat(event) {
   cheatingEvents.push(event);
   const counter = document.getElementById('cheatCounter');
   counter.style.display = 'inline-block';
-  counter.textContent = `⚠ ${cheatingEvents.length} warning${cheatingEvents.length > 1  's' : ''}`;
+  counter.textContent = `⚠ ${cheatingEvents.length} warning${cheatingEvents.length > 1 ? 's' : ''}`;
 }
 
 async function triggerAutoSubmit(reason) {
@@ -223,7 +223,7 @@ function startTimer() {
 function buildNavGrid() {
   const grid = document.getElementById('navGrid');
   grid.innerHTML = questions.map((_, i) =>
-    `<button class="q-nav-btn" id="nav-${i}" onclick="goToQ(${i})">${i1}</button>`
+    `<button class="q-nav-btn" id="nav-${i}" onclick="goToQ(${i})">${i+1}</button>`
   ).join('');
 }
 
@@ -239,40 +239,40 @@ function renderQuestion(idx) {
   // Fallback for older questions generated before the SAQ/LAQ fix
   // If it's flagged as MCQ but has 0 options, treat it as SAQ or LAQ based on marks
   const isMcqFallback = rawQType === 'mcq' && (!q.options || q.options.length === 0);
-  const qType = isMcqFallback  (marks >= 5  'laq' : 'saq') : rawQType;
+  const qType = isMcqFallback ? (marks >= 5 ? 'laq' : 'saq') : rawQType;
   const isMcq = qType === 'mcq';
 
   // Type badge
   let typeBadge = '<span style="background:var(--bg);color:var(--text);padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">✅ MCQ</span>';
-  if (qType === 'saq') typeBadge = `<span style="background:var(--bg);color:var(--text);padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">📝 SAQ — ${marks} Mark${marks > 1  's' : ''}</span>`;
+  if (qType === 'saq') typeBadge = `<span style="background:var(--bg);color:var(--text);padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">📝 SAQ — ${marks} Mark${marks > 1 ? 's' : ''}</span>`;
   if (qType === 'laq') typeBadge = `<span style="background:var(--bg);color:var(--text);padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;">📋 LAQ — ${marks} Marks</span>`;
 
 
-  document.getElementById('qNum').innerHTML = `Question ${idx  1} of ${questions.length} &nbsp;·&nbsp; ${typeBadge}`;
+  document.getElementById('qNum').innerHTML = `Question ${idx + 1} of ${questions.length} &nbsp;·&nbsp; ${typeBadge}`;
   document.getElementById('qText').textContent = q.text;
   document.getElementById('qProgress').textContent =
     `${answers.filter(a => a.selectedIndex !== -1 || (a.textAnswer||'').trim().length > 0).length}/${questions.length} answered`;
 
   // Show/hide Clear Answer button (only relevant for MCQ)
   const clearBtn = document.getElementById('clearBtn');
-  if (clearBtn) clearBtn.style.display = isMcq  '' : 'none';
+  if (clearBtn) clearBtn.style.display = isMcq ? '' : 'none';
 
   const container = document.getElementById('optionsList');
 
   if (isMcq) {
     // MCQ: render as clickable option divs
     container.innerHTML = (q.options||[]).map((o, oi) => `
-      <div class="option-item ${oi === ans.selectedIndex  'selected' : ''}" onclick="selectOption(${oi})" style="cursor:pointer;">
+      <div class="option-item ${oi === ans.selectedIndex ? 'selected' : ''}" onclick="selectOption(${oi})" style="cursor:pointer;">
         <span class="option-letter">${letters[oi]}</span>${o}
       </div>`).join('');
   } else {
     // SAQ / LAQ: textarea answer box
-    const rows = qType === 'saq'  5 : 12;
-    const minH = qType === 'saq'  '120px' : '260px';
+    const rows = qType === 'saq' ? 5 : 12;
+    const minH = qType === 'saq' ? '120px' : '260px';
     const hint = qType === 'saq'
-       '✍️ Short Answer — write 2–6 clear sentences.'
+      ? '✍️ Short Answer — write 2–6 clear sentences.'
       : '✍️ Long Answer — write detailed paragraphs with examples.';
-    const wordCount = (ans.textAnswer||'').trim().split(/\s/).filter(Boolean).length;
+    const wordCount = (ans.textAnswer||'').trim().split(/\s+/).filter(Boolean).length;
 
     container.innerHTML = `
       <div style="margin-bottom:10px;padding:10px 14px;background:rgba(79,70,229,.1);border-left:3px solid var(--primary);border-radius:6px;font-size:0.82rem;color:var(--dim);">
@@ -315,10 +315,10 @@ function renderQuestion(idx) {
       let typingTimer;
       if (ta) {
         ta.addEventListener('input', function() {
-          const wc = this.value.trim().split(/\s/).filter(Boolean).length;
+          const wc = this.value.trim().split(/\s+/).filter(Boolean).length;
           const el = document.getElementById('wordCountEl');
           const badge = document.getElementById('autoSaveBadge');
-          if (el) el.textContent = wc  ' words';
+          if (el) el.textContent = wc + ' words';
           
           if (badge) {
             badge.style.display = 'none';
@@ -381,7 +381,7 @@ function updateTextAnswer(text) {
 
 function navigate(dir) {
   saveCurrentQTime();
-  const next = currentIdx  dir;
+  const next = currentIdx + dir;
   if (next >= 0 && next < questions.length) renderQuestion(next);
 }
 
@@ -403,7 +403,7 @@ function toggleNotepad() {
 
 
 function saveCurrentQTime() {
-  answers[currentIdx].timeTakenSec = Math.round((Date.now() - qStartTime) / 1000);
+  answers[currentIdx].timeTakenSec += Math.round((Date.now() - qStartTime) / 1000);
   qStartTime = Date.now();
 }
 
@@ -416,7 +416,7 @@ function confirmSubmit() {
   document.getElementById('submitModal').classList.remove('hidden');
 }
 
-async function submitExam(isAut= false) {
+async function submitExam(isAuto = false) {
   if (submitted) return;
   submitted = true;
   document.getElementById('submitModal').classList.add('hidden');
@@ -440,12 +440,12 @@ async function submitExam(isAut= false) {
     });
 
     if (!isAuto) {
-      // Normal submit — gtresult page
-      window.location.href = `/result.htmlid=${data.submissionId}`;
+      // Normal submit — go to result page
+      window.location.href = `/result.html?id=${data.submissionId}`;
     }
     // Auto-submit shows the overlay (already shown)
   } catch (err) {
-    showToast('Submit failed: '  err.message, 'error');
+    showToast('Submit failed: ' + err.message, 'error');
     submitted = false;
   }
 }

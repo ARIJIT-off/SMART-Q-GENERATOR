@@ -8,14 +8,13 @@
     const token = localStorage.getItem('sqg_token');
     const user = (() => { try { return JSON.parse(localStorage.getItem('sqg_user')); } catch { return null; } })();
     if (token && user) {
-      window.location.href = user.role === 'admin'  '/admin.html' : '/student.html';
+      window.location.href = user.role === 'admin' ? '/admin.html' : '/student.html';
     } else {
       window.location.href = '/login.html';
     }
   </script>
 </head>
-<body>
-<script>
+<body><script>
 document.addEventListener("input", function(e) {
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
         if (e.target.value && e.target.value !== "0" && e.target.value.trim() !== "") {
@@ -27,5 +26,4 @@ document.addEventListener("input", function(e) {
 });
 </script>
 </body>
-
 </html>

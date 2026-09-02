@@ -1,6 +1,6 @@
 /**
  * api.js — Shared API client for all HTML pages
- * All fetch calls gthrough apiFetch() which auto-attaches the JWT token.
+ * All fetch calls go through apiFetch() which auto-attaches the JWT token.
  */
 
 const API_BASE = '/api';
@@ -24,7 +24,7 @@ async function apiFetch(endpoint, options = {}) {
 
   const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
 
-  // If 401, clear auth and redirect tlogin
+  // If 401, clear auth and redirect to login
   if (res.status === 401) {
     clearAuth();
     window.location.href = '/login.html';
@@ -62,15 +62,15 @@ function showToast(msg, type = 'info') {
   toast._timer = setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
-// Format seconds tMM:SS
+// Format seconds to MM:SS
 function fmtTime(sec) {
   const m = Math.floor(sec / 60), s = sec % 60;
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
-// Format seconds thuman-readable
+// Format seconds to human-readable
 function fmtDuration(sec) {
   if (sec < 60) return `${sec}s`;
   const m = Math.floor(sec / 60), s = sec % 60;
-  return s > 0  `${m}m ${s}s` : `${m}m`;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
