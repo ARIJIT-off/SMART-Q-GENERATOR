@@ -115,7 +115,8 @@ label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--mut
 .btn-danger:hover { background: #da3633; }
 .btn-success { background: var(--success); color: #0d1117; border-color: var(--success); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
+.btn-secondary { background: var(--surface2); border-color: var(--border); color: var(--text); }
+.btn-secondary:hover { background: var(--surface-light); }
 
 /* Toast Alerts */
 #toast { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }

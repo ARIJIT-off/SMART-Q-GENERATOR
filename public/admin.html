@@ -9,31 +9,32 @@
  .gen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
  @media(max-width:768px){ .gen-grid{ grid-template-columns:1fr; } }
  .q-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
- .exam-link-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: monospace; font-size: 0.82rem; color: var(--muted); word-break: break-all; }
+ .exam-link-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: monospace; font-size: 0.82rem; color: var(--muted); word-break: break-all; }
  .result-row td:first-child { font-weight: 600; }
  .topic-scores-cell { max-width: 200px; }
- .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; color: var(--dim); margin: 2px; }
+ .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; color: var(--muted); margin: 2px; }
  </style>
 </head>
 <body>
 <!-- Navbar -->
 <nav class="navbar">
- <span class="navbar-brand"> SMART Q-GEN</span>
- <div class="navbar-actions">
+ <span class="brand">SMART Q-GEN</span>
+ <div class="nav-links">
  <span class="user-chip" id="user-chip">Loading…</span>
- <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+ <button class="btn btn-danger btn-sm" onclick="logout()">Sign Out</button>
  </div>
 </nav>
 
 <div class="main">
  <!-- Tabs -->
- <div class="tabs">
- <button class="tab-btn active" onclick="switchTab('upload')"> Upload &amp; Generate</button>
- <button class="tab-btn" onclick="switchTab('bank')"> Question Bank</button>
- <button class="tab-btn" onclick="switchTab('create')"> Create Exam</button>
- <button class="tab-btn" onclick="switchTab('exams')"> My Exams</button>
- <button class="tab-btn" onclick="switchTab('results')"> Results</button>
+ <div class="tabs-nav" style="margin-top:20px;">
+ <button class="tab-btn active" onclick="switchTab('upload')">Upload & Generate</button>
+ <button class="tab-btn" onclick="switchTab('bank')">Question Bank</button>
+ <button class="tab-btn" onclick="switchTab('create')">Create Exam</button>
+ <button class="tab-btn" onclick="switchTab('exams')">My Exams</button>
+ <button class="tab-btn" onclick="switchTab('results')">Results</button>
  </div>
+
 
  <!-- Tab: Upload & Generate -->
  <div id="tab-upload" class="tab-panel active">
